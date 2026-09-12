@@ -60,12 +60,12 @@ img{display:block}
     font-weight:400;
 }
 
-nav{
+.header nav{
     display:flex;
     align-items:center;
 }
 
-nav a{
+.header nav a{
     margin-left:24px;
     font-size:12px;
     text-transform:uppercase;
@@ -74,8 +74,8 @@ nav a{
     transition:color .25s;
 }
 
-nav a:hover,
-nav a.active{
+.header nav a:hover,
+.header nav a.active{
     color:var(--gold);
 }
 
@@ -695,7 +695,7 @@ footer{
 /* ===== RESPONSIVE ===== */
 @media(max-width:1080px){
     .header{padding:16px 30px}
-    nav a{margin-left:16px}
+    .header nav a{margin-left:16px}
     .venue-detail{grid-template-columns:1fr}
 }
 
@@ -708,7 +708,7 @@ footer{
 
     .nav-toggle{display:flex}
 
-    nav{
+    .header nav{
         position:fixed;
         top:64px;
         right:0;
@@ -722,9 +722,9 @@ footer{
         transition:transform .3s ease;
     }
 
-    nav.open{transform:translateX(0)}
+    .header nav.open{transform:translateX(0)}
 
-    nav a{
+    .header nav a{
         margin:0 0 22px;
         font-size:14px;
     }
