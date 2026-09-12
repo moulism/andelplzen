@@ -1,7 +1,9 @@
-/* Renders MENU (see menu-data.js) into #menu-dynamic on menu.html */
+/* Renders MENU (see menu-data.js) into #menu-dynamic on menu.html as a
+   tabbed interface — one category visible at a time, switched via the
+   tab bar in #menu-tabs, so the page never turns into one giant scroll. */
 (function () {
   const root = document.getElementById("menu-dynamic");
-  const jumpRoot = document.getElementById("menu-jump");
+  const tabsRoot = document.getElementById("menu-tabs");
   if (!root || typeof MENU === "undefined") return;
 
   const IMG_BASE = "images/drinks/";
@@ -15,22 +17,16 @@
       .replace(/(^-|-$)/g, "");
   }
 
+  const sections = [];
+
   MENU.forEach(section => {
     const id = slug(section.cat);
 
-    if (jumpRoot) {
-      const a = document.createElement("a");
-      a.href = "#" + id;
-      a.textContent = section.cat;
-      jumpRoot.appendChild(a);
-    }
-
     const sec = document.createElement("section");
-    sec.className = "section-tight menu-category";
+    sec.className = "menu-category";
     sec.id = id;
 
     const h3 = document.createElement("h3");
-    h3.setAttribute("data-animate", "");
     h3.textContent = section.cat;
     sec.appendChild(h3);
 
@@ -44,14 +40,12 @@
         currentGroup = item.g;
         const gh = document.createElement("div");
         gh.className = "menu-group-label";
-        gh.setAttribute("data-animate", "");
         gh.textContent = currentGroup;
         grid.appendChild(gh);
       }
 
-      const row = document.createElement("div");
-      row.className = "menu-item";
-      row.setAttribute("data-animate", "");
+      const card = document.createElement("div");
+      card.className = "menu-item";
 
       const thumb = document.createElement("div");
       thumb.className = "menu-item-thumb";
@@ -64,9 +58,10 @@
         img.src = ICON_BASE + (section.icon || "spirit") + ".svg";
         img.alt = "";
         img.className = "placeholder-icon";
+        img.loading = "lazy";
       }
       thumb.appendChild(img);
-      row.appendChild(thumb);
+      card.appendChild(thumb);
 
       const info = document.createElement("div");
       info.className = "menu-item-info";
@@ -91,8 +86,8 @@
         info.appendChild(desc);
       }
 
-      row.appendChild(info);
-      grid.appendChild(row);
+      card.appendChild(info);
+      grid.appendChild(card);
     });
 
     sec.appendChild(grid);
@@ -100,21 +95,42 @@
     if (section.note) {
       const p = document.createElement("p");
       p.className = "menu-note";
-      p.setAttribute("data-animate", "");
       p.textContent = section.note;
       sec.appendChild(p);
     }
 
     root.appendChild(sec);
+    sections.push({ id, cat: section.cat, el: sec });
   });
 
-  /* These elements were added after animations.js already set up its
-     IntersectionObserver, so give them their own. */
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      entry.target.classList.toggle("show", entry.isIntersecting);
+  /* ---- tabs ---- */
+  function setActive(id) {
+    sections.forEach(s => {
+      const isActive = s.id === id;
+      s.el.classList.toggle("is-active", isActive);
     });
-  }, { threshold: 0.1 });
+    if (tabsRoot) {
+      tabsRoot.querySelectorAll("button").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.target === id);
+      });
+    }
+  }
 
-  root.querySelectorAll("[data-animate]").forEach(el => observer.observe(el));
+  if (tabsRoot) {
+    sections.forEach(s => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = s.cat;
+      btn.dataset.target = s.id;
+      btn.addEventListener("click", () => {
+        setActive(s.id);
+        history.replaceState(null, "", "#" + s.id);
+        root.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      tabsRoot.appendChild(btn);
+    });
+  }
+
+  const initial = sections.find(s => s.id === location.hash.slice(1));
+  setActive(initial ? initial.id : sections[0].id);
 })();
