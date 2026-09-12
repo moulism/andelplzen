@@ -39,44 +39,11 @@
     <a href="station.html">Station</a>
 </div>
 
-<section id="alkohol" class="section-tight">
-<h3 data-animate>🍸 Alkohol</h3>
-<div class="menu-grid">
-    <div class="menu-box" data-animate>
-        <ul>
-            <li>Whiskey <span>90 Kč</span></li>
-            <li>Gin <span>95 Kč</span></li>
-            <li>Rum <span>95 Kč</span></li>
-        </ul>
-    </div>
-</div>
-</section>
+<nav class="menu-jump" id="menu-jump" aria-label="Rychlá navigace v menu"></nav>
 
-<section id="kava">
-<h3 data-animate>☕ Káva</h3>
-<div class="menu-grid">
-    <div class="menu-box" data-animate>
-        <ul>
-            <li>Espresso <span>55 Kč</span></li>
-            <li>Cappuccino <span>65 Kč</span></li>
-            <li>Latte <span>75 Kč</span></li>
-        </ul>
-    </div>
-</div>
-</section>
+<div id="menu-dynamic"></div>
 
-<section id="nealko">
-<h3 data-animate>🥤 Nealko</h3>
-<div class="menu-grid">
-    <div class="menu-box" data-animate>
-        <ul>
-            <li>Domácí limonáda <span>65 Kč</span></li>
-            <li>Fresh džus <span>75 Kč</span></li>
-        </ul>
-    </div>
-</div>
-<p class="menu-note" data-animate>Denní obědové menu v Anděl Bistru a nabídku dortů a dezertů v Anděl Station najdete přímo na jejich stránkách.</p>
-</section>
+<p class="menu-note section-tight" data-animate style="padding-bottom:60px">Denní obědové menu v Anděl Bistru a nabídku dortů a dezertů v Anděl Station najdete přímo na jejich stránkách.</p>
 
 <footer id="kontakt">
     <div class="footer-info">
@@ -97,5 +64,7 @@
 </footer>
 
 <script src="animations.js"></script>
+<script src="menu-data.js"></script>
+<script src="menu-render.js"></script>
 </body>
 </html>
