@@ -1,12 +1,17 @@
 /* ==========================================================================
-   Anděl Café — data menu
+   Anděl Café & Bar — data menu
    -----------------------------------------------------------------------
    Každá položka: { n: název, d: popis/ingredience nebo příchutě, s: velikost,
                     p: cena, i: soubor fotky v images/drinks/ (nebo null) }
-   Skupina kategorií může mít "g" u položky = podnadpis (např. "irská",
-   "skotská"...). Když položka nemá foto (i: null), použije se ikona
-   kategorie (icon) jako připravené místo pro fotku.
+   Skupina kategorií může mít "g" u položky = podnadpis (např. "Irská
+   whisky", "Bourbon"...). Když položka nemá foto (i: null), použije se
+   ikona kategorie (icon) jako připravené místo pro fotku.
    Pro doplnění foto stačí přidat soubor do images/drinks/ a vyplnit "i".
+
+   Aktualizováno podle receptur a ceníku z uprav. Excelu (Napojak Bar) a
+   pokynů vedení — září 2026. Pořadí kategorií nápojového lístku: Pivo &
+   Cider → Nealko nápoje → Nealko drinky → Shoty → Drinky → Drinky 2 →
+   Drinky 3 → ostatní (víno, lihoviny…), přesně dle instrukcí vedení.
    ========================================================================== */
 
 const MENU = [
@@ -75,121 +80,170 @@ const MENU = [
   note: "Na vyžádání obsluhy lze některé limonády připravit i v teplé variantě."
 },
 
-/* -------------------------------------------------------------- NEALKO */
+/* ------------------------------------------------------- PIVO & CIDER */
 {
-  cat: "Nealko", icon: "soda",
+  cat: "Pivo & Cider", icon: "beer",
   items: [
-    { n:"Kofola", d:"čepovaná", s:"3 dl", p:"50 Kč" },
-    { n:"Royal Crown", d:"classic, zero", s:"2,5 dl", p:"55 Kč" },
-    { n:"Rajec", d:"neperlivá, jemně perlivá", s:"3,3 dl", p:"45 Kč" },
-    { n:"Vinea", s:"2,5 dl", p:"55 Kč" },
-    { n:"Targa Florio", d:"pomeranč, mandarinka-maracuja", s:"2,5 dl", p:"55 Kč" },
-    { n:"Targa Florio Tonic", d:"classic, růžový, zázvorový", s:"2,5 dl", p:"55 Kč" },
-    { n:"Thomas Henry", d:"ginger beer, mango", s:"3,3 dl", p:"65 Kč" },
-    { n:"Thomas Henry Tonic", d:"dry, cherry, botanicals", s:"3,3 dl", p:"65 Kč" },
-    { n:"Curiosa", d:"pomeranč, jablko, jahoda", s:"2 dl", p:"65 Kč" },
-    { n:"Seicha Matcha", d:"grep, yuzu-ginger, limetka, broskev-tonka", s:"3,3 dl", p:"70 Kč" },
-    { n:"Club Mate", s:"3,3 dl", p:"70 Kč" },
-    { n:"Koka Mate", s:"3,3 dl", p:"80 Kč" },
-    { n:"Red Bull", d:"classic, tropical", s:"2,5 dl", p:"75 Kč" },
-    { n:"Karafa vody", d:"s mátou, limetkou a citronem", s:"5 dl", p:"50 Kč" },
-    { n:"Karafa vody", d:"s mátou, limetkou a citronem", s:"10 dl", p:"70 Kč" },
+    { g:"Čepované", n:"Pilsner Urquell", s:"0,28 l", p:"55 Kč" },
+    { g:"Čepované", n:"Pilsner Urquell", s:"0,48 l", p:"70 Kč" },
+    { g:"Čepované", n:"Gambrinus 11°", s:"0,28 l", p:"50 Kč" },
+    { g:"Čepované", n:"Gambrinus 11°", s:"0,48 l", p:"65 Kč" },
+    { g:"Čepované", n:"Proud", s:"0,38 l", p:"59 Kč" },
+
+    { g:"Cider", n:"Frisco Cider", s:"0,38 l", p:"59 Kč" },
+
+    { g:"Lahvové", n:"Pilsner Urquell", s:"0,33 l", p:"59 Kč" },
+    { g:"Lahvové", n:"Heineken", s:"0,33 l", p:"59 Kč" },
+    { g:"Lahvové", n:"Corona", s:"0,355 l", p:"85 Kč" },
+
+    { g:"Nealkoholické", n:"Bernard Free", d:"světlý", s:"0,33 l", p:"59 Kč" },
+    { g:"Nealkoholické", n:"Bernard Free", d:"švestka / grep", s:"0,5 l", p:"59 Kč" },
+    { g:"Nealkoholické", n:"Birell", d:"světlý", s:"0,33 l", p:"55 Kč" },
+    { g:"Nealkoholické", n:"Birell", d:"Pomelo-grep", s:"0,33 l", p:"55 Kč" },
   ]
 },
 
-/* ---------------------------------------------------------------- PIVO */
+/* ----------------------------------------------------- NEALKO NÁPOJE */
 {
-  cat: "Pivo", icon: "beer",
+  cat: "Nealko nápoje", icon: "soda",
   items: [
-    { n:"Pilsner Urquell", d:"čepované", s:"0,3 l", p:"50 Kč" },
-    { n:"Pilsner Urquell", d:"čepované", s:"0,5 l", p:"70 Kč" },
-    { n:"Bernard 11° světlý", d:"čepované", s:"0,3 l", p:"55 Kč" },
-    { n:"Bernard 11° světlý", d:"čepované", s:"0,5 l", p:"65 Kč" },
-    { n:"Bernard Free", d:"nealkoholické, lahvové", s:"3,3 dl", p:"55 Kč" },
+    { g:"Čepované", n:"Kofola", s:"0,28 l", p:"45 Kč" },
+    { g:"Čepované", n:"Kofola", s:"0,48 l", p:"65 Kč" },
+    { g:"Čepované", n:"Birell Pomelo-grep", s:"0,28 l", p:"55 Kč" },
+    { g:"Čepované", n:"Birell Pomelo-grep", s:"0,48 l", p:"65 Kč" },
+
+    { g:"Lahvové", n:"Royale Crown Cola", d:"classic / zero", s:"0,25 l", p:"65 Kč" },
+    { g:"Lahvové", n:"Targa", d:"maracuja / citron / pomeranč", s:"0,25 l", p:"65 Kč" },
+    { g:"Lahvové", n:"Targa Tonic", d:"classic / růžový / zázvor", s:"0,25 l", p:"65 Kč" },
+    { g:"Lahvové", n:"Thomas Henry Tonic", d:"classic / botanical / ginger beer / grepfruit", s:"0,2 l", p:"75 Kč" },
+    { g:"Lahvové", n:"Curiosa Džus", d:"jablko / pomeranč / jahoda / multivitamin", s:"0,25 l", p:"75 Kč" },
+    { g:"Lahvové", n:"Rajec", d:"neperlivá / jemně perlivá / perlivá", s:"0,33 l", p:"50 Kč" },
+    { g:"Lahvové", n:"Rajec", d:"neperlivá / jemně perlivá", s:"0,75 l", p:"75 Kč" },
+    { g:"Lahvové", n:"Dilmah Ice Tea", d:"broskev / jasmín / citron", s:"0,25 l", p:"65 Kč" },
+    { g:"Lahvové", n:"Redbull", d:"classic / zero / white peach / pink zero / blue / sezónní", s:"0,25 l", p:"75 Kč" },
+    { g:"Lahvové", n:"Vinea", s:"0,25 l", p:"65 Kč" },
+
+    { g:"Rozlévané", n:"Soda", s:"0,1 l", p:"10 Kč" },
+    { g:"Rozlévané", n:"Sirup", s:"0,04 l", p:"15 Kč" },
+  ]
+},
+
+/* ------------------------------------------------------- NEALKO DRINKY */
+{
+  cat: "Nealko drinky", icon: "soda",
+  items: [
+    { n:"Captain Morgan 0% + Cola", d:"Captain Morgan 0% + Royal Crown Cola", s:"1 ks", p:"100 Kč" },
+    { n:"Tanqueray 0% + Tonic", d:"Tanqueray 0% gin + Targa tonic", s:"1 ks", p:"120 Kč" },
+    { n:"Virgin Mojito", d:"limetková šťáva, simple sirup, máta, soda", s:"1 ks", p:"110 Kč" },
+    { n:"Virgin Sunrise", d:"pomerančový džus, grenadina, soda", s:"1 ks", p:"100 Kč" },
+    { n:"Virgin Paloma", d:"limetková šťáva, Thomas Henry grep, špetka soli, soda", s:"1 ks", p:"120 Kč" },
+    { n:"Elderflower Fizz 0.0", d:"bezový sirup, limetková šťáva, máta, soda", s:"1 ks", p:"100 Kč" },
+    { n:"Crodino Spritz", d:"Crodino, soda, pomeranč", s:"1 ks", p:"105 Kč" },
+  ]
+},
+
+/* -------------------------------------------------------------- SHOTY */
+{
+  cat: "Shoty", icon: "cocktail",
+  items: [
+    { n:"Jelen", d:"Jägermeister + Red Bull Classic", p:"60 Kč" },
+    { n:"Lítačka", d:"Absolut vodka + Red Bull White Peach", p:"60 Kč" },
+    { n:"Včelka", d:"Jim Beam Honey + Red Bull White Peach", p:"60 Kč" },
+    { n:"Chupito", d:"bílý rum, limetkový cordial, koktejlová třešeň", p:"55 Kč" },
+    { n:"B52", d:"Kahlúa + Baileys + Stroh", p:"105 Kč" },
+    { n:"Svině Havana", d:"Havana Club 3yo, cola, limetková šťáva", p:"55 Kč" },
+    { n:"Svině Vodka", d:"vodka, džus nebo cola dle volby", p:"55 Kč" },
+    { n:"Karibská Bomba", d:"Malibu + Red Bull White Peach", p:"60 Kč" },
+    { n:"Illusion", d:"Bols Peach, vodka, pomerančový džus, grenadina", p:"80 Kč" },
+  ]
+},
+
+/* --------------------------------------------------------------DRINKY */
+{
+  cat: "Drinky", icon: "cocktail",
+  items: [
+    { g:"Signature", n:"Gimlet No.TEN", d:"Tanqueray No. Ten, limetková šťáva, citronová kůra", p:"155 Kč", i:"gimlet-no10.jpg" },
+    { g:"Signature", n:"Whiskey Sour", d:"Johnnie Walker Black Label, citronová šťáva, cukrový sirup, vaječný bílek, bitters", p:"145 Kč", i:"whiskeySour.jpg" },
+
+    { g:"Short", n:"Absolut Vodka + Džus", d:"Absolut vodka, pomerančový džus", p:"110 Kč" },
+    { g:"Short", n:"Amarancio", d:"Campari, gin, Red Bull White Peach", p:"125 Kč", i:"amarancio.jpg" },
+    { g:"Short", n:"Moscow Mule", d:"Absolut vodka, limetková šťáva, ginger beer", p:"125 Kč", i:"moscowMule.jpg" },
+    { g:"Short", n:"Skinny Bitch", d:"Absolut vodka, limetková šťáva, soda", p:"95 Kč", i:"skinny-btich.jpg" },
+    { g:"Short", n:"Skinny Bitch Malina", d:"Absolut vodka, limetková šťáva, malinový sirup, soda", p:"110 Kč" },
+    { g:"Short", n:"Božkov + RC Cola", d:"Absolut Raspberri, limetková šťáva, malinový sirup, soda", p:"95 Kč" },
+    { g:"Short", n:"Captain Morgan + RC Cola", d:"Captain Morgan Spiced Gold, Royal Crown Cola", p:"110 Kč" },
+    { g:"Short", n:"Jack Daniels + RC Cola", d:"Jack Daniel's, Royal Crown Cola", p:"125 Kč" },
+    { g:"Short", n:"Jameson + Ginger Beer", d:"Jameson, ginger beer, limetková šťáva", p:"110 Kč" },
+    { g:"Short", n:"White Russian", d:"Absolut vodka, Kahlúa, smetana", p:"145 Kč" },
+    { g:"Short", n:"Black Russian", d:"Absolut vodka, Kahlúa", p:"130 Kč" },
+    { g:"Short", n:"Štrúdl", d:"Jack Daniel's Fire, jablečný džus, skořice", p:"120 Kč", i:"JackDanielsFire.jpg" },
+  ]
+},
+
+/* ------------------------------------------------------------ DRINKY 2 */
+{
+  cat: "Drinky 2", icon: "cocktail",
+  items: [
+    { n:"Beton", d:"Becherovka, Targa tonic", p:"110 Kč" },
+    { n:"Bavorák", d:"Fernet Stock, Targa tonic", p:"110 Kč" },
+    { n:"Beefeater + Tonic", d:"Beefeater gin, Targa tonic", p:"120 Kč" },
+    { n:"Tanqueray + Thomas Henry", d:"Tanqueray gin, Thomas Henry tonic", p:"170 Kč" },
+    { n:"Opihr + Thomas Henry", d:"Opihr gin, Thomas Henry tonic", p:"200 Kč" },
+    { n:"Bombay + Thomas Henry", d:"Bombay Sapphire, Thomas Henry tonic", p:"150 Kč" },
+    { n:"Gin Mare + Thomas Henry", d:"Gin Mare, Thomas Henry tonic", p:"200 Kč" },
+    { n:"Tom Collins", d:"Tanqueray gin, citronová šťáva, simple sirup, soda", p:"160 Kč" },
+    { n:"Tom Collins Royale", d:"Tanqueray Royale gin, citronová šťáva, simple sirup, soda", p:"170 Kč" },
+    { n:"Cuba Libre", d:"Havana 3yo / bílý rum, limetková šťáva, Royal Crown Cola", p:"145 Kč", i:"cubaLibre.jpg" },
+    { n:"Mojito", d:"Havana 3yo / bílý rum, limetka, simple sirup, máta, soda", p:"145 Kč", i:"Mojito.jpg" },
+    { n:"Malinové Mojito", d:"Havana 3yo, limetková šťáva, malinový sirup/pyré, máta, soda", p:"155 Kč" },
+    { n:"Dark'n Stormy", d:"tmavý rum Bacardi, ginger beer, limetková šťáva", p:"130 Kč", i:"darkAndStormy.jpg" },
+    { n:"Sex on the Beach", d:"vodka, broskvový likér, pomerančový džus, grenadina", p:"155 Kč", i:"SexOnTheBeach.jpg" },
+    { n:"Metaxa Suntonic", d:"Metaxa 5*, tonic", p:"115 Kč" },
+    { n:"Tequila Sunrise", d:"tequila, pomerančový džus, grenadina", p:"145 Kč" },
+    { n:"Long Island Iced Tea", d:"vodka, gin, bílý rum, tequila, Cointreau, citronová šťáva, Royal Crown Cola", p:"230 Kč" },
+    { n:"Paloma", d:"tequila blanco, limetková šťáva, Thomas Henry grep, špetka soli", p:"160 Kč" },
+    { n:"Americano", d:"Campari, Martini Rosso, soda", p:"135 Kč", i:"martiniRosso.jpg" },
+    { n:"Campari Tonic", d:"Campari, tonic", p:"125 Kč" },
+    { n:"Batanga", d:"tequila, limetková šťáva, cola, špetka soli", p:"135 Kč" },
+    { n:"Ranch Water", d:"tequila, limetková šťáva, soda", p:"130 Kč" },
+    { n:"Gin Buck", d:"Tanqueray gin, limetková nebo citronová šťáva, ginger beer", p:"135 Kč" },
+    { n:"Blue Lagoon", d:"vodka, Blue Curaçao, citronová limonáda/soda, nálev z koktejlových třešniček", p:"150 Kč" },
+    { n:"Gin Sunset", d:"gin, pomerančový džus, grenadina", p:"130 Kč" },
+    { n:"Pink Lady", d:"Absolut vodka, prosecco, malinový sirup/pyré, limetková šťáva, soda", p:"140 Kč" },
+    { n:"Gin Fizz", d:"Tanqueray gin, citronová šťáva, simple sirup, soda", p:"150 Kč", i:"ginFizz.jpg" },
+    { n:"Cosmopolitan", d:"citronová vodka, Triple Sec, brusinkový džus, limetková šťáva", p:"160 Kč" },
+    { n:"Negroni", d:"gin, Campari, Martini Rosso", p:"170 Kč" },
+    { n:"Jack Blackberry Lemonade", d:"Jack Daniel's Blackberry, citronová limonáda, citron", p:"150 Kč" },
+    { n:"Jack Honey Lemonade", d:"Jack Daniel's Honey, citronová limonáda, citron", p:"150 Kč" },
+    { n:"Jack Apple Lemonade", d:"Jack Daniel's Apple, citronová limonáda, citron", p:"150 Kč" },
+    { n:"Zlatokopka", d:"Jägermeister Orange, tonic, pomeranč", p:"135 Kč" },
+    { n:"Gin Hendrick's + Thomas Henry", d:"Gin Hendrick's, Thomas Henry tonic", p:"" },
+    { n:"Gin Malfy + Thomas Henry", d:"Gin Malfy, Thomas Henry tonic", p:"" },
+  ]
+},
+
+/* ------------------------------------------------------------ DRINKY 3 */
+{
+  cat: "Drinky 3", icon: "cocktail",
+  items: [
+    { n:"Aperol Spritz", d:"prosecco, Aperol, soda", p:"125 Kč" },
+    { n:"Campari Spritz", d:"prosecco, Campari, soda", p:"125 Kč" },
+    { n:"Sarti Spritz", d:"prosecco, Sarti Rosa, soda", p:"125 Kč", i:"SartiRosa.jpg" },
+    { n:"Peach Spritz", d:"prosecco, Red Bull White Peach, limetková šťáva, máta, limetka", p:"135 Kč" },
+    { n:"Mimosa", d:"prosecco, pomerančový džus", p:"105 Kč" },
+    { n:"Hugo Spritz", d:"prosecco, bezový sirup, soda, máta, limetková šťáva", p:"135 Kč" },
+    { n:"Limoncello Spritz", d:"prosecco, limoncello, soda", p:"125 Kč", i:"limonce.jpg" },
   ]
 },
 
 /* ---------------------------------------------------------------- VÍNO */
 {
   cat: "Víno", icon: "wine",
-  note: "Vinný lístek na vyžádání u obsluhy.",
+  note: "Širší nabídka lahvových vín na našem vinném lístku.",
   items: [
-    { g:"bílé", n:"Chardonnay", d:"stáčené, polosuché", s:"1 dl", p:"35 Kč" },
-    { g:"bílé", n:"Ryzlink rýnský", d:"stáčené, suché", s:"1 dl", p:"35 Kč" },
-    { g:"bílé", n:"Pálava", d:"Hajduch, polosladké", s:"1 dl", p:"45 Kč" },
-    { g:"bílé", n:"Rulandské šedé", d:"Hajduch, sladké", s:"1 dl", p:"45 Kč" },
-    { g:"bílé", n:"Sauvignon", d:"Šmíd, suché", s:"1 dl", p:"45 Kč" },
-    { g:"bílé", n:"Vinný střik", d:"Chardonnay 1 dl, soda 1 dl", s:"2 dl", p:"55 Kč" },
-    { g:"červené", n:"Merlot", d:"stáčené, suché", s:"1 dl", p:"35 Kč" },
-    { g:"červené", n:"Dornfelder", d:"Šmíd, suché", s:"1 dl", p:"45 Kč" },
-    { g:"červené", n:"Portské víno", s:"5 cl", p:"55 Kč" },
-    { g:"růžové", n:"Svatovavřinecké rosé", d:"polosladké", s:"1 dl", p:"45 Kč" },
-    { g:"šumivé", n:"Lambrusco", d:"bílé, červené, růžové", s:"1 dl", p:"35 Kč" },
-    { g:"šumivé", n:"Prosecco brut", d:"bílé", s:"1 dl", p:"45 Kč" },
-  ]
-},
-
-/* ---------------------------------------------------------- KOKTEJLY 1 */
-{
-  cat: "Koktejly — short", icon: "cocktail",
-  items: [
-    { n:"Daiquiri", d:"rum Havana 3yo, limetkový fresh, simple sirup, lime leaf bitters", p:"95 Kč" },
-    { n:"White Russian", d:"vodka Ketel One, likér Kahlúa, smetana, muškátový oříšek", p:"115 Kč" },
-    { n:"Amarancio", d:"gin Gordon's, likér Campari, Red Bull Tropical edition", p:"125 Kč", i:"amarancio.jpg" },
-    { n:"Caipirinha", d:"rum Cachaça, limetky, třtinový cukr", p:"130 Kč", i:"caipirinha.jpg" },
-    { n:"Whiskey Sour", d:"skotská whisky Monkey Shoulder, citronový fresh, simple sirup, pěnič", p:"130 Kč", i:"whiskeySour.jpg" },
-    { n:"Aviation", d:"gin The Botanist, citronový fresh, fialkový sirup", p:"140 Kč" },
-    { n:"Cosmopolitan", d:"vodka Ketel One, likér Cointreau, limetkový fresh, brusinkový džus", p:"145 Kč" },
-    { n:"Espresso Martini", d:"vodka Ketel One, likér Kahlúa, espresso, simple sirup", p:"145 Kč" },
-    { n:"Margarita", d:"tequila blanco El Jimador, likér Cointreau, limetkový fresh, sůl, simple sirup", p:"145 Kč" },
-    { n:"Strawberry Margarita", d:"tequila blanco El Jimador, likér Cointreau, limetkový fresh, sůl, jahodové pyré", p:"145 Kč", i:"strawberryMojito.jpg" },
-    { n:"Negroni", d:"gin Tanqueray, likér Campari, vermouth Martini Rosso", p:"160 Kč" },
-    { n:"Bramble", d:"gin Tanqueray, likér Chambord, citronový fresh, simple sirup", p:"165 Kč" },
-
-    { g:"spritz", n:"Mimosa", d:"prosecco, pomerančový džus", p:"105 Kč" },
-    { g:"spritz", n:"Hugo Spritz", d:"house prosecco, máta, bezinkový sirup, soda", p:"110 Kč" },
-    { g:"spritz", n:"Limoncello Spritz", d:"likér Limoncè, prosecco, soda", p:"125 Kč", i:"limonce.jpg" },
-    { g:"spritz", n:"Sarti Spritz", d:"likér Sarti, prosecco, soda", p:"125 Kč", i:"SartiRosa.jpg" },
-    { g:"spritz", n:"Aperol Spritz", d:"likér Aperol, prosecco, soda", p:"125 Kč" },
-
-    { g:"shooters", n:"Chupito", d:"rum Havana 3yo, limetkový cordial, koktejlová třešeň", p:"60 Kč" },
-    { g:"shooters", n:"Raspberry Haze", d:"vodka Absolut, likér Chambord, limetkový fresh", p:"80 Kč" },
-    { g:"shooters", n:"Svině", d:"rum Havana 3yo, RC cola, limetkový fresh", p:"55 Kč" },
-
-    { g:"nealko", n:"Spritz", p:"95 Kč" },
-    { g:"nealko", n:"Mojito Soft", p:"95 Kč" },
-    { g:"nealko", n:"Virgin Colada", p:"95 Kč" },
-  ]
-},
-
-/* ---------------------------------------------------- KOKTEJLY signature */
-{
-  cat: "Koktejly — signature", icon: "cocktail",
-  items: [
-    { n:"Gin Sunset", d:"gin Beefeater Blood Orange, Aperol, pomerančový fresh, soda, simple sirup", p:"125 Kč" },
-    { n:"Pink Lady", d:"prosecco, vodka Absolut, jahodové pyré, soda", p:"135 Kč" },
-    { n:"Mango Tree", d:"rum Captain Morgan Black Spiced, citronový fresh, rozmarýnovo-medový sirup, mangová limonáda Thomas Henry", p:"145 Kč" },
-  ]
-},
-
-/* --------------------------------------------------------- KOKTEJLY long */
-{
-  cat: "Koktejly — long", icon: "cocktail",
-  items: [
-    { n:"Gimlet No. 10", d:"gin Tanqueray No. 10, limetkový fresh, simple sirup", p:"155 Kč", i:"gimlet-no10.jpg" },
-    { n:"Mullet", d:"whiskey Monkey Shoulder, pomerančový fresh, grapefruit bitters, ginger beer Thomas Henry", p:"165 Kč", i:"mullet.jpg" },
-    { n:"Skinny Bitch", d:"vodka Absolut, limetkový fresh, soda", p:"95 Kč", i:"skinny-btich.jpg" },
-    { n:"Gin Fizz", d:"gin Hendrick's, limetkový fresh, simple sirup, soda, lime leaf bitters", p:"125 Kč", i:"ginFizz.jpg" },
-    { n:"Cuba Libre", d:"rum Havana 3yo, limetkový fresh, cola Royal Crown", p:"135 Kč", i:"cubaLibre.jpg" },
-    { n:"Mojito", d:"rum Havana 3yo, limetky, máta, třtinový cukr, soda", p:"135 Kč", i:"Mojito.jpg" },
-    { n:"Dark & Stormy", d:"rum Captain Morgan Black, limetkový fresh, ginger beer Thomas Henry", p:"140 Kč", i:"darkAndStormy.jpg" },
-    { n:"Moscow Mule", d:"vodka Absolut, limetkový fresh, ginger beer Thomas Henry", p:"140 Kč", i:"moscowMule.jpg" },
-    { n:"Malinové Mojito", d:"rum Havana 3yo, limetky, máta, třtinový cukr, soda, maliny", p:"145 Kč" },
-    { n:"Piňa Colada", d:"rum Malibu, smetana, kokosové pyré, ananasový džus", p:"145 Kč", i:"pinaColada.jpg" },
-    { n:"Sex on the Beach", d:"vodka Absolut, likér Bols Peach, pomerančový džus, brusinkový džus", p:"145 Kč", i:"SexOnTheBeach.jpg" },
-    { n:"Tequila Sunrise", d:"tequila blanco El Jimador, pomerančový džus, limetkový fresh, grenadina sirup", p:"145 Kč" },
-    { n:"Tom Collins", d:"gin Tanqueray, citronový fresh, simple sirup, soda", p:"145 Kč" },
-    { n:"Long Island Iced Tea", d:"gin Beefeater, rum Havana 3yo, vodka Absolut, tequila blanco El Jimador, likér Cointreau, citronový fresh, cola Royal Crown", p:"230 Kč" },
+    { n:"Chardonnay", d:"bílé, suché", s:"1 dcl", p:"35 Kč" },
+    { n:"Primitivo", d:"červené, suché", s:"1 dcl", p:"35 Kč" },
+    { n:"Prosecco", d:"šumivé, suché", s:"1 dcl", p:"45 Kč" },
   ]
 },
 
@@ -218,17 +272,24 @@ const MENU = [
 {
   cat: "Likéry", icon: "spirit",
   items: [
-    { n:"Amaretto", s:"4 cl", p:"75 Kč" },
-    { n:"Aperol", s:"4 cl", p:"69 Kč" },
     { n:"Baileys", s:"4 cl", p:"65 Kč" },
     { n:"Becherovka", s:"4 cl", p:"60 Kč" },
+    { n:"Becherovka Lemond", s:"4 cl", p:"60 Kč" },
+    { n:"Bols Peach", s:"4 cl", p:"50 Kč" },
+    { n:"Cointreau", s:"4 cl", p:"65 Kč" },
     { n:"Fernet Stock", s:"4 cl", p:"60 Kč" },
     { n:"Fernet Stock Citrus", s:"4 cl", p:"60 Kč" },
     { n:"Griotka", s:"4 cl", p:"60 Kč" },
-    { n:"Jägermeister", s:"4 cl", p:"65 Kč" },
-    { n:"Limoncello", s:"4 cl", p:"69 Kč", i:"limonce.jpg" },
-    { n:"Peprmintový likér", s:"4 cl", p:"60 Kč" },
-    { n:"Vaječný likér", s:"4 cl", p:"60 Kč" },
+    { n:"Jägermeister", s:"4 cl", p:"70 Kč" },
+    { n:"Jägermeister Orange", s:"4 cl", p:"70 Kč" },
+    { n:"Bartida Zelená", s:"4 cl", p:"60 Kč" },
+    { n:"Božkov Modrá", s:"4 cl", p:"60 Kč" },
+    { n:"Polar Jahoda", s:"4 cl", p:"60 Kč" },
+    { n:"Tatra Tea 32%", s:"4 cl", p:"65 Kč" },
+    { n:"Tatra Tea 42%", s:"4 cl", p:"70 Kč" },
+    { n:"Tatra Tea 52%", s:"4 cl", p:"75 Kč" },
+    { n:"Tatra Tea 62%", s:"4 cl", p:"80 Kč" },
+    { n:"Tatra Tea 72%", s:"4 cl", p:"90 Kč" },
   ]
 },
 
@@ -241,13 +302,21 @@ const MENU = [
   ]
 },
 
-/* -------------------------------------------------------------- VODKY */
+/* -------------------------------------------------------------- VODKA */
 {
-  cat: "Vodky", icon: "spirit",
+  cat: "Vodka", icon: "spirit",
   items: [
-    { n:"Absolut", s:"4 cl", p:"65 Kč" },
-    { n:"Babička", s:"4 cl", p:"125 Kč", i:"babicka.jpg" },
+    { n:"Absolut", s:"4 cl", p:"75 Kč" },
+    { n:"Absolut Citron", s:"4 cl", p:"75 Kč" },
+    { n:"Absolut Kurant", s:"4 cl", p:"75 Kč" },
+    { n:"Absolut Raspberri", d:"malina", s:"4 cl", p:"75 Kč" },
+    { n:"Absolut Red Ruby", d:"grapefruit", s:"4 cl", p:"75 Kč" },
+    { n:"Absolut Vanilia", s:"4 cl", p:"75 Kč" },
+    { n:"Amundsen Fusion", d:"meloun", s:"4 cl", p:"65 Kč" },
     { n:"Ketel One", s:"4 cl", p:"90 Kč" },
+    { n:"Pravda", s:"4 cl", p:"100 Kč" },
+    { n:"Grey Goose", s:"4 cl", p:"130 Kč" },
+    { n:"Smirnoff", s:"4 cl", p:"75 Kč" },
   ]
 },
 
@@ -255,29 +324,26 @@ const MENU = [
 {
   cat: "Rum", icon: "spirit",
   items: [
-    { n:"Abuelo 15yo Napoleon", s:"4 cl", p:"260 Kč", i:"abuelo-napoleon.jpg" },
-    { n:"Abuelo 15yo Oloroso", s:"4 cl", p:"260 Kč", i:"abuelo-oloroso.jpg" },
-    { n:"Abuelo 15yo Port Case", s:"4 cl", p:"285 Kč", i:"abuelo-tawny.jpg" },
-    { n:"Božkov Tuzemský", s:"4 cl", p:"50 Kč" },
-    { n:"Captain Morgan Black", s:"4 cl", p:"60 Kč", i:"capitanMorganBlackSpiced.jpg" },
-    { n:"Captain Morgan Spiced Gold", s:"4 cl", p:"65 Kč" },
-    { n:"Captain Bucanero", s:"4 cl", p:"75 Kč", i:"capitanBucanero.jpg" },
-    { n:"Diplomatico Reserva Exclusiva", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
-    { n:"Diplomatico Mantuano", s:"4 cl", p:"85 Kč", i:"diplomatico-mantuano.jpg" },
+    { n:"Austrian Empire Navy", s:"4 cl", p:"130 Kč" },
+    { n:"Bacardi Carta Blanca", s:"4 cl", p:"70 Kč" },
+    { n:"Bacardi Carta Negra", s:"4 cl", p:"70 Kč" },
+    { n:"Božkov", s:"4 cl", p:"55 Kč" },
+    { n:"Božkov Republika", s:"4 cl", p:"65 Kč" },
+    { n:"Captain Bucanero", s:"4 cl", p:"89 Kč", i:"capitanBucanero.jpg" },
+    { n:"Captain Morgan Spiced Gold", s:"4 cl", p:"70 Kč", i:"capitanMorganBlackSpiced.jpg" },
+    { n:"Captain Morgan 0%", s:"4 cl", p:"50 Kč" },
+    { n:"Diplomatico", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
     { n:"Don Papa", s:"4 cl", p:"135 Kč", i:"donPapa-rum.jpg" },
-    { n:"Don Papa Baroko", s:"4 cl", p:"160 Kč", i:"donPapa-baroko.jpg" },
+    { n:"Don Papa Baroko", s:"4 cl", p:"135 Kč", i:"donPapa-baroko.jpg" },
     { n:"Don Papa Gayuma", s:"4 cl", p:"270 Kč", i:"donPapa-gayuma.jpg" },
-    { n:"Don Papa Masskara", s:"4 cl", p:"150 Kč", i:"donPap-masskara.jpg" },
-    { n:"Espero Caribbean Orange", s:"4 cl", p:"85 Kč" },
-    { n:"Havana 3yo", s:"4 cl", p:"65 Kč", i:"HavanaClub.jpg" },
-    { n:"Havana 7yo", s:"4 cl", p:"85 Kč", i:"havanaClub-7.jpg" },
-    { n:"Kakadu", s:"4 cl", p:"65 Kč", i:"kakadu.jpg" },
-    { n:"Legendario Elixir de Cuba", s:"4 cl", p:"85 Kč", i:"Legendario.jpg" },
+    { n:"Havana 3yo", s:"4 cl", p:"70 Kč", i:"HavanaClub.jpg" },
+    { n:"Havana 7yo", s:"4 cl", p:"95 Kč", i:"havanaClub-7.jpg" },
+    { n:"Legendario 7yo", s:"4 cl", p:"89 Kč", i:"Legendario.jpg" },
     { n:"Malibu", s:"4 cl", p:"65 Kč" },
-    { n:"Plantation Stiggin's Fancy Pineapple", s:"4 cl", p:"95 Kč", i:"plantationPineapple.jpg" },
-    { n:"Plantation XO", s:"4 cl", p:"165 Kč", i:"plantation.jpg" },
-    { n:"Ron Zacapa Centenario Royal", s:"4 cl", p:"890 Kč", i:"zacapaRoyal.jpg" },
-    { n:"Ron Zacapa Centenario Solera", s:"4 cl", p:"130 Kč", i:"Zacapa.jpg" },
+    { n:"Ron Zacapa Centenario Solera", s:"4 cl", p:"135 Kč", i:"Zacapa.jpg" },
+    { n:"Stroh", s:"4 cl", p:"99 Kč" },
+    { n:"Kakadu", s:"4 cl", p:"65 Kč", i:"kakadu.jpg" },
+    { n:"Abuelo Napoleon", s:"4 cl", p:"260 Kč", i:"abuelo-napoleon.jpg" },
   ]
 },
 
@@ -285,10 +351,9 @@ const MENU = [
 {
   cat: "Pálenky", icon: "spirit",
   items: [
-    { n:"Borovička", s:"4 cl", p:"80 Kč" },
-    { n:"Hruškovice", s:"4 cl", p:"80 Kč" },
-    { n:"Slivovice", s:"4 cl", p:"80 Kč" },
-    { n:"Višňovka", s:"4 cl", p:"80 Kč" },
+    { n:"Bartida Hruškovice", s:"4 cl", p:"80 Kč" },
+    { n:"Bartida Slivovice", s:"4 cl", p:"80 Kč" },
+    { n:"Baron Hildprandt Hruškovice", s:"4 cl", p:"90 Kč" },
   ]
 },
 
@@ -296,10 +361,8 @@ const MENU = [
 {
   cat: "Tequila", icon: "spirit",
   items: [
-    { n:"Don Julio Blanco", s:"4 cl", p:"220 Kč", i:"donJulio-blanco.jpg" },
-    { n:"Don Julio Reposado", s:"4 cl", p:"235 Kč", i:"donJulio-reposado.jpg" },
-    { n:"El Jimador Blanco", s:"4 cl", p:"95 Kč" },
-    { n:"El Jimador Reposado", s:"4 cl", p:"95 Kč" },
+    { n:"El Jimador Blanco", s:"4 cl", p:"80 Kč" },
+    { n:"El Jimador Reposado", s:"4 cl", p:"80 Kč" },
   ]
 },
 
@@ -308,48 +371,46 @@ const MENU = [
   cat: "Gin", icon: "spirit",
   note: "Možnost kombinovat se všemi toniky.",
   items: [
-    { n:"Beefeater", d:"classic, pink, blood orange", s:"4 cl", p:"65 Kč", i:"beefeaterPinkStraw.jpg" },
-    { n:"Gin Mare", s:"4 cl", p:"115 Kč" },
-    { n:"Gin Mare Capri", s:"4 cl", p:"155 Kč", i:"ginMareCapri.jpg" },
-    { n:"Hendrick's", s:"4 cl", p:"95 Kč", i:"hendricksGin.jpg" },
-    { n:"Hendrick's Flora Adora", s:"4 cl", p:"140 Kč" },
+    { n:"Beefeater", d:"classic, pink, blood orange", s:"4 cl", p:"70 Kč", i:"beefeaterPinkStraw.jpg" },
+    { n:"Bombay Sapphire", s:"4 cl", p:"75 Kč" },
     { n:"Malfy Rosa", s:"4 cl", p:"105 Kč" },
+    { n:"Hendrick's", s:"4 cl", p:"95 Kč", i:"hendricksGin.jpg" },
+    { n:"Opihr", s:"4 cl", p:"125 Kč" },
+    { n:"Tanqueray", s:"4 cl", p:"95 Kč" },
+    { n:"Tanqueray 0% Alkohol", s:"4 cl", p:"110 Kč", i:"tanquerayAlcoFree.jpg" },
+    { n:"Tanqueray Blackcurrant Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
+    { n:"Tanqueray No TEN", s:"4 cl", p:"115 Kč", i:"noTen.jpg" },
+    { n:"Gin Mare", s:"4 cl", p:"125 Kč" },
     { n:"Roku", s:"4 cl", p:"105 Kč" },
-    { n:"Roku Sakura Edition", s:"4 cl", p:"105 Kč" },
-    { n:"Tanqueray", s:"4 cl", p:"95 Kč", i:"tanquerayAlcoFree.jpg" },
-    { n:"Tanqueray Flor de Sevilla", s:"4 cl", p:"85 Kč" },
-    { n:"Tanqueray No. 10", s:"4 cl", p:"115 Kč", i:"noTen.jpg" },
-    { n:"Tanqueray Royale", s:"4 cl", p:"85 Kč", i:"tanquerayRoyale.jpg" },
-    { n:"The Botanist Dry Gin", s:"4 cl", p:"125 Kč", i:"TheBotanist.jpg" },
+    { n:"Roku Sakura", s:"4 cl", p:"105 Kč" },
   ]
 },
 
-/* ------------------------------------------------------------- WHISKEY */
+/* ------------------------------------------------------------- WHISKY */
 {
-  cat: "Whiskey", icon: "spirit",
+  cat: "Whisky", icon: "spirit",
   items: [
-    { g:"irská", n:"Jameson", s:"4 cl", p:"70 Kč", i:"Jameson.jpg" },
-    { g:"irská", n:"Tullamore Dew", s:"4 cl", p:"70 Kč", i:"tullamoreDEW.jpg" },
+    { g:"Irská whisky", n:"Jameson", s:"4 cl", p:"70 Kč", i:"Jameson.jpg" },
+    { g:"Irská whisky", n:"Tullamore Dew", s:"4 cl", p:"75 Kč", i:"tullamoreDEW.jpg" },
+    { g:"Irská whisky", n:"Bushmills", s:"4 cl", p:"75 Kč" },
 
-    { g:"skotská", n:"Bruichladdich", s:"4 cl", p:"185 Kč", i:"bruichladdich.jpg" },
-    { g:"skotská", n:"Laphroaig 10yo", s:"4 cl", p:"185 Kč" },
-    { g:"skotská", n:"Johnnie Walker Black Label", s:"4 cl", p:"105 Kč" },
-    { g:"skotská", n:"Johnnie Walker Double Black", s:"4 cl", p:"150 Kč", i:"doubleBlack.jpg" },
-    { g:"skotská", n:"Johnnie Walker Red Label", s:"4 cl", p:"70 Kč" },
-    { g:"skotská", n:"Johnnie Walker 18yo", s:"4 cl", p:"390 Kč", i:"johnnieWalker-18years.jpg" },
-    { g:"skotská", n:"Lagavulin 16yo", s:"4 cl", p:"330 Kč", i:"lagavulin.jpg" },
-    { g:"skotská", n:"Monkey Shoulder", s:"4 cl", p:"95 Kč", i:"MonkeyShoulder.jpg" },
-    { g:"skotská", n:"Oban 14y", s:"4 cl", p:"260 Kč", i:"Orban.jpg" },
-    { g:"skotská", n:"Octomore", s:"4 cl", p:"690 Kč", i:"Octomore.jpg" },
-    { g:"skotská", n:"Singleton of Dufftown 12y", s:"4 cl", p:"125 Kč" },
+    { g:"Skotská whisky", n:"Grants", s:"4 cl", p:"75 Kč" },
+    { g:"Skotská whisky", n:"Johnnie Walker Red Label", s:"4 cl", p:"76 Kč" },
+    { g:"Skotská whisky", n:"Johnnie Walker Black Label", s:"4 cl", p:"105 Kč" },
+    { g:"Skotská whisky", n:"Johnnie Walker Red Rye Finish", s:"4 cl", p:"85 Kč" },
 
-    { g:"bourbon", n:"Bulleit 9 Rye", s:"4 cl", p:"125 Kč", i:"bulleit95.jpg" },
-    { g:"bourbon", n:"Bulleit 10y", s:"4 cl", p:"155 Kč", i:"bulleitBourbon10.jpg" },
-    { g:"bourbon", n:"Jack Daniels", d:"classic, honey, fire", s:"4 cl", p:"85 Kč", i:"JackDanielsFire.jpg" },
-    { g:"bourbon", n:"Jim Beam", s:"4 cl", p:"70 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels", s:"4 cl", p:"85 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Honey", s:"4 cl", p:"85 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Fire", s:"4 cl", p:"85 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Blackberry", s:"4 cl", p:"85 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Apple", s:"4 cl", p:"85 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Gentleman", s:"4 cl", p:"125 Kč" },
+    { g:"Americká whiskey", n:"Jack Daniels Single Barrel", s:"4 cl", p:"175 Kč" },
 
-    { g:"japonská", n:"Hibiki", s:"4 cl", p:"385 Kč", i:"hibiki.jpg" },
-    { g:"japonská", n:"Toki", s:"4 cl", p:"195 Kč", i:"toki.jpg" },
+    { g:"Bourbon", n:"Jim Beam", s:"4 cl", p:"75 Kč" },
+    { g:"Bourbon", n:"Jim Beam Honey", s:"4 cl", p:"75 Kč" },
+    { g:"Bourbon", n:"Four Roses", s:"4 cl", p:"75 Kč" },
+    { g:"Bourbon", n:"Wild Turkey", s:"4 cl", p:"75 Kč" },
   ]
 },
 

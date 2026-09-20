@@ -209,6 +209,24 @@ img{display:block}
     max-width:560px;
 }
 
+.hero-menu-btn{
+    display:inline-block;
+    margin-top:26px;
+    border:1px solid var(--gold);
+    background:var(--gold);
+    color:#000;
+    padding:14px 32px;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    transition:.3s;
+}
+
+.hero-menu-btn:hover{
+    background:transparent;
+    color:var(--gold);
+}
+
 /* ===== VENUE TABS (cross-nav between the 5 spaces) ===== */
 .venues-nav{
     display:flex;
