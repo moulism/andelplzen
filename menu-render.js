@@ -1,13 +1,21 @@
-/* Renders MENU (see menu-data.js) into #menu-dynamic on menu.html as a
-   tabbed interface — one category visible at a time, switched via the
-   tab bar in #menu-tabs, so the page never turns into one giant scroll. */
+/* Renders the menu of one venue (MENUS[<body data-menu>] from menu-data.js)
+   into #menu-dynamic as a tabbed interface — one category visible at a time,
+   switched via the tab bar in #menu-tabs, so the page never turns into one
+   giant scroll.
+
+   Items with a photo (i) are shown as cards with the photo; items without a
+   photo have no placeholder image at all — they are shown as a compact
+   two-column price list below the photo cards (within the same group). */
 (function () {
   const root = document.getElementById("menu-dynamic");
   const tabsRoot = document.getElementById("menu-tabs");
-  if (!root || typeof MENU === "undefined") return;
+  if (!root || typeof MENUS === "undefined") return;
+
+  const venue = (document.body.dataset.menu || "cafe");
+  const data = MENUS[venue];
+  if (!data) return;
 
   const IMG_BASE = "images/drinks/";
-  const ICON_BASE = "images/placeholders/";
 
   function slug(str) {
     return str
@@ -19,7 +27,7 @@
 
   const sections = [];
 
-  MENU.forEach(section => {
+  data.menu.forEach(section => {
     const id = slug(section.cat);
 
     const sec = document.createElement("section");
@@ -30,38 +38,32 @@
     h3.textContent = section.cat;
     sec.appendChild(h3);
 
-    const grid = document.createElement("div");
-    grid.className = "menu-items";
-
-    let currentGroup = null;
-
+    /* rozdělení do skupin (podnadpisů) */
+    const groups = [];
     section.items.forEach(item => {
-      if (item.g && item.g !== currentGroup) {
-        currentGroup = item.g;
-        const gh = document.createElement("div");
-        gh.className = "menu-group-label";
-        gh.textContent = currentGroup;
-        grid.appendChild(gh);
+      const label = item.g || null;
+      let gr = groups[groups.length - 1];
+      if (!gr || gr.label !== label) {
+        gr = { label, items: [] };
+        groups.push(gr);
       }
+      gr.items.push(item);
+    });
 
+    function buildCard(item) {
       const card = document.createElement("div");
-      card.className = "menu-item";
+      card.className = "menu-item" + (item.i ? "" : " menu-item--nophoto");
 
-      const thumb = document.createElement("div");
-      thumb.className = "menu-item-thumb";
-      const img = document.createElement("img");
       if (item.i) {
+        const thumb = document.createElement("div");
+        thumb.className = "menu-item-thumb";
+        const img = document.createElement("img");
         img.src = IMG_BASE + item.i;
         img.alt = item.n;
         img.loading = "lazy";
-      } else {
-        img.src = ICON_BASE + (section.icon || "spirit") + ".svg";
-        img.alt = "";
-        img.className = "placeholder-icon";
-        img.loading = "lazy";
+        thumb.appendChild(img);
+        card.appendChild(thumb);
       }
-      thumb.appendChild(img);
-      card.appendChild(thumb);
 
       const info = document.createElement("div");
       info.className = "menu-item-info";
@@ -87,10 +89,35 @@
       }
 
       card.appendChild(info);
-      grid.appendChild(card);
-    });
+      return card;
+    }
 
-    sec.appendChild(grid);
+    function buildLabel(text) {
+      const gh = document.createElement("div");
+      gh.className = "menu-group-label";
+      gh.textContent = text;
+      return gh;
+    }
+
+    groups.forEach(gr => {
+      const withPhoto = gr.items.filter(i => i.i);
+      const noPhoto = gr.items.filter(i => !i.i);
+
+      if (withPhoto.length) {
+        const grid = document.createElement("div");
+        grid.className = "menu-items";
+        if (gr.label) grid.appendChild(buildLabel(gr.label));
+        withPhoto.forEach(i => grid.appendChild(buildCard(i)));
+        sec.appendChild(grid);
+      }
+      if (noPhoto.length) {
+        const list = document.createElement("div");
+        list.className = "menu-items is-list";
+        if (gr.label && !withPhoto.length) list.appendChild(buildLabel(gr.label));
+        noPhoto.forEach(i => list.appendChild(buildCard(i)));
+        sec.appendChild(list);
+      }
+    });
 
     if (section.note) {
       const p = document.createElement("p");

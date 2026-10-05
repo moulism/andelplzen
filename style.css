@@ -581,6 +581,32 @@ h3{
     line-height:1.55;
 }
 
+/* položka bez fotky = bez obrázku (žádný šedý čtverec) */
+
+/* kategorie bez jediné fotky = přehledný ceník ve dvou sloupcích */
+.menu-items.is-list{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:0 64px;
+    max-width:1100px;
+}
+.menu-items + .menu-items{margin-top:34px}
+.menu-items.is-list .menu-group-label{margin:0 0 4px}
+.menu-items.is-list .menu-item{
+    background:none;
+    border-bottom:1px solid #262626;
+}
+.menu-items.is-list .menu-item-info{padding:14px 0}
+
+.menu-other{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    padding:0 20px 60px;
+    line-height:2.2;
+}
+.menu-other a{color:var(--gold);margin:0 10px;white-space:nowrap}
+.menu-other a:hover{text-decoration:underline}
+
 /* ===== PROGRAM (Anděl Music Bar — monthly events) ===== */
 .program-list{
     display:flex;
@@ -752,6 +778,7 @@ footer{
     .menu-tabs{padding:24px 20px 0;top:64px}
     .menu-dynamic{padding:0 20px 40px}
     .menu-items{grid-template-columns:repeat(2,1fr);gap:16px}
+    .menu-items.is-list{grid-template-columns:1fr;gap:0}
     .program-card{flex-direction:column;gap:14px}
     .program-date{
         width:auto;
