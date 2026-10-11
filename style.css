@@ -220,8 +220,7 @@ img{display:block}
 
 /* ===== VENUE HERO (subpages) ===== */
 .venue-hero{
-    height:65vh;
-    min-height:420px;
+    min-height:max(65vh,480px);
     background-size:cover;
     background-position:center;
     display:flex;
@@ -238,7 +237,7 @@ img{display:block}
 
 .venue-hero-content{
     position:relative;
-    padding:0 80px 60px;
+    padding:130px 80px 60px;
     max-width:900px;
 }
 
@@ -938,7 +937,7 @@ footer{
     .spaces,.events-grid,.venues-grid,.menu-grid,.gallery{grid-template-columns:1fr}
     .hero-title{font-size:56px}
     section{padding:100px 24px}
-    .venue-hero-content{padding:0 24px 40px}
+    .venue-hero-content{padding:120px 24px 40px}
     .venue-hero-content h1{font-size:42px}
 
     .nav-toggle{display:flex}
