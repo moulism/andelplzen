@@ -79,14 +79,71 @@ img{display:block}
     color:var(--gold);
 }
 
+.header nav > a.active{
+    border-bottom:2px solid var(--gold);
+    padding-bottom:5px;
+}
+
 .menu-btn{
     border:1px solid var(--gold);
     padding:7px 18px;
 }
 
-.menu-btn:hover{
+.menu-btn:hover,
+.menu-btn.active{
     background:var(--gold);
-    color:#000;
+    color:#000 !important;
+}
+
+/* rozbalovací Menu */
+.nav-group{
+    position:relative;
+    display:flex;
+    align-items:center;
+    margin-left:24px;
+}
+.header nav .nav-group > a{margin-left:0}
+.subnav{
+    display:none;
+    position:absolute;
+    top:100%;
+    right:0;
+    min-width:220px;
+    padding:8px 0;
+    background:rgba(0,0,0,.96);
+    border:1px solid #2a2a2a;
+}
+.nav-group:hover .subnav,
+.nav-group:focus-within .subnav{display:block}
+.header nav .subnav a{
+    display:block;
+    margin:0;
+    padding:12px 20px;
+    border:0;
+}
+.header nav .subnav a.active{background:rgba(201,164,92,.12)}
+
+/* drobečková navigace — kde na webu jsem */
+.crumbs{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--muted);
+    margin-bottom:20px;
+}
+.crumbs a{color:var(--muted);transition:color .2s}
+.crumbs a:hover{color:var(--gold)}
+.crumb-sep{margin:0 10px;color:#555}
+.crumb-here{color:var(--gold)}
+.menu-hero .crumbs{margin-bottom:26px}
+.menu-back{margin-top:14px}
+.menu-back a{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--gold);
+    border-bottom:1px solid var(--gold);
+    padding-bottom:2px;
 }
 
 .nav-toggle{
@@ -225,6 +282,66 @@ img{display:block}
 .hero-menu-btn:hover{
     background:transparent;
     color:var(--gold);
+}
+
+.hero-menu-btn--ghost{
+    background:transparent;
+    color:var(--gold);
+    margin-left:12px;
+}
+.hero-menu-btn--ghost:hover{
+    background:var(--gold);
+    color:#000;
+}
+
+/* zvýrazněné tlačítko na hlavní stránce */
+.hero-buttons a.hero-photos{
+    background:var(--gold);
+    color:#000;
+}
+.hero-buttons a.hero-photos:hover{
+    background:transparent;
+    color:var(--gold);
+}
+
+/* banner „Fotky z našich akcí“ */
+.photos-banner{
+    position:relative;
+    background-size:cover;
+    background-position:center;
+    text-align:center;
+    padding:130px 24px;
+}
+.photos-banner::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(rgba(0,0,0,.72),rgba(0,0,0,.82));
+}
+.photos-banner-inner{
+    position:relative;
+    max-width:640px;
+    margin:0 auto;
+}
+.photos-banner h3{margin-bottom:18px}
+.photos-banner p{
+    color:#cfcfcf;
+    line-height:1.8;
+    margin-bottom:10px;
+}
+
+/* vstupenky (widget SMS Ticket) */
+.tickets-box{
+    max-width:760px;
+    margin:40px auto 0;
+    background:#fff;
+    border:1px solid var(--gold);
+}
+.tickets-box iframe{
+    display:block;
+    width:100%;
+    height:620px;
+    border:0;
 }
 
 /* ===== VENUE TABS (cross-nav between the 5 spaces) ===== */
@@ -737,6 +854,20 @@ h3{
     letter-spacing:.3px;
 }
 
+.program-card.is-past.show{opacity:.5}
+.program-btn{
+    display:inline-block;
+    margin-top:14px;
+    border:1px solid var(--gold);
+    color:var(--gold);
+    padding:9px 20px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    transition:.25s;
+}
+.program-btn:hover{background:var(--gold);color:#000}
+
 .program-desc{
     color:var(--muted);
     font-size:14px;
@@ -824,6 +955,7 @@ footer{
         padding:30px;
         transform:translateX(100%);
         transition:transform .3s ease;
+        overflow-y:auto;
     }
 
     .header nav.open{transform:translateX(0)}
@@ -834,6 +966,22 @@ footer{
     }
 
     .menu-btn{margin-top:8px}
+    .nav-group{margin:0}
+    .subnav{
+        display:block;
+        position:static;
+        min-width:0;
+        padding:0 0 0 14px;
+        background:none;
+        border:0;
+        margin:10px 0 22px;
+    }
+    .header nav .subnav a{padding:8px 0;margin:0;font-size:13px;color:var(--muted)}
+    .header nav .subnav a.active{background:none;color:var(--gold)}
+    .header nav > a.active{border-bottom:0;padding-bottom:0}
+    .hero-menu-btn--ghost{margin-left:0}
+    .tickets-box iframe{height:560px}
+    .photos-banner{padding:90px 20px}
 
     .menu-tabs{padding:24px 20px 0;top:64px}
     .menu-dynamic{padding:0 20px 40px}

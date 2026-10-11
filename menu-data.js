@@ -40,7 +40,7 @@ cafe: {
       items: [
         { n:"Espresso na ledu", s:"9 g", p:"60 Kč" },
         { n:"Affogato", s:"9 g", p:"85 Kč" },
-        { n:"Espresso Tonic", s:"18 g", p:"100 Kč" },
+        { n:"Espresso Tonic", s:"9 g", p:"95 Kč" },
         { n:"Ledové Latte", s:"9 g", p:"85 Kč" },
         { n:"Ledové Cappuccino", s:"9 g", p:"80 Kč" },
         { n:"Frappé", s:"9 g", p:"90 Kč" },
@@ -120,7 +120,7 @@ cafe: {
         { n:"Tanqueray 0% + Tonic", d:"Tanqueray 0% gin + Targa tonic", s:"1 ks", p:"120 Kč" },
         { n:"Virgin Mojito", d:"limetková šťáva, simple sirup, máta, soda", s:"1 ks", p:"110 Kč" },
         { n:"Elderflower Fizz 0.0", d:"bezový sirup, limetková šťáva, máta, soda", s:"1 ks", p:"100 Kč" },
-        { n:"Crodino Spritz", d:"Crodino, soda, pomeranč", s:"1 ks", p:"105 Kč" },
+        { n:"Crodino", d:"Biondo / Rosso, soda, pomeranč", s:"1 ks", p:"105 Kč" },
         { n:"Virgin Colada", d:"nealkoholická verze Piña Colady", p:"110 Kč" },
       ]
     },
@@ -169,8 +169,8 @@ cafe: {
         { n:"Gin Fizz", d:"Tanqueray gin, citronová šťáva, simple sirup, soda", p:"150 Kč", i:"ginFizz.jpg" },
         { n:"Cosmopolitan", d:"citronová vodka, Triple Sec, brusinkový džus, limetková šťáva", p:"160 Kč" },
         { n:"Negroni", d:"gin, Campari, Martini Rosso", p:"170 Kč" },
-        { n:"Alon Colada", p:"195 Kč" },
-        { n:"Ginger Papa", d:"Don Papa Masskara, limeta, Thomas Henry ginger", p:"195 Kč" },
+        { n:"Alon Colada", d:"Don Papa Alon, smetana, kokosové pyré, ananasové pyré", p:"195 Kč" },
+        { n:"Ginger Papa", d:"Don Papa Masskara, ginger beer Thomas Henry, limeta", p:"195 Kč" },
         { n:"Piña Colada", d:"rum Malibu, smetana, kokosové pyré, ananasový džus", p:"145 Kč", i:"pinaColada.jpg" },
       ]
     },
@@ -346,7 +346,6 @@ cafe: {
       note: "Možnost absinthové fontány.",
       items: [
         { n:"Absinth", s:"4 cl", p:"75 Kč" },
-        { n:"Absinthový vaječňák", s:"4 cl", p:"65 Kč" },
         { n:"La Clandestine Marienne", s:"4 cl", p:"145 Kč", i:"laClandestineBlanche.jpg" },
         { n:"La Corneille Verte", s:"4 cl", p:"95 Kč", i:"LaCorneille.jpg" },
         { n:"Pernod Recette Traditionnelle", s:"4 cl", p:"165 Kč", i:"perdonAbsinthe.jpg" },
@@ -359,6 +358,7 @@ cafe: {
         { n:"Amaretto", s:"4 cl", p:"75 Kč" },
         { n:"Aperol", s:"4 cl", p:"69 Kč" },
         { n:"Baileys", s:"4 cl", p:"65 Kč" },
+        { n:"Bartida Zelená", s:"4 cl", p:"60 Kč" },
         { n:"Becherovka", s:"4 cl", p:"60 Kč" },
         { n:"Campari", s:"4 cl", p:"65 Kč" },
         { n:"Fernet Stock", s:"4 cl", p:"60 Kč" },
@@ -402,7 +402,7 @@ cafe: {
         { n:"Diplomatico", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
         { n:"Diplomatico Mantuano", s:"4 cl", p:"85 Kč", i:"diplomatico-mantuano.jpg" },
         { n:"Don Papa", s:"4 cl", p:"135 Kč", i:"donPapa-rum.jpg" },
-        { n:"Don Papa Alon", s:"4 cl", p:"135 Kč" },
+        { n:"Don Papa Alon", s:"4 cl", p:"150 Kč" },
         { n:"Don Papa Baroko", s:"4 cl", p:"160 Kč", i:"donPapa-baroko.jpg" },
         { n:"Don Papa Gayuma", s:"4 cl", p:"270 Kč", i:"donPapa-gayuma.jpg" },
         { n:"Don Papa Masskara", s:"4 cl", p:"150 Kč", i:"donPap-masskara.jpg" },
@@ -455,7 +455,7 @@ cafe: {
         { n:"Tanqueray 0%", s:"4 cl", p:"110 Kč", i:"tanquerayAlcoFree.jpg" },
         { n:"Tanqueray Flor de Sevilla", s:"4 cl", p:"85 Kč" },
         { n:"Tanqueray No. TEN", s:"4 cl", p:"115 Kč", i:"noTen.jpg" },
-        { n:"Tanqueray Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
+        { n:"Tanqueray Blackcurrant Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
         { n:"The Botanist", s:"4 cl", p:"125 Kč", i:"TheBotanist.jpg" },
       ]
     },
@@ -574,7 +574,7 @@ klub: {
         { n:"Virgin Sunrise", d:"pomerančový džus, grenadina, soda", s:"1 ks", p:"100 Kč" },
         { n:"Virgin Paloma", d:"limetková šťáva, Thomas Henry grep, špetka soli, soda", s:"1 ks", p:"120 Kč" },
         { n:"Elderflower Fizz 0.0", d:"bezový sirup, limetková šťáva, máta, soda", s:"1 ks", p:"100 Kč" },
-        { n:"Crodino Spritz", d:"Crodino, soda, pomeranč", s:"1 ks", p:"105 Kč" },
+        { n:"Crodino", d:"Biondo / Rosso, soda, pomeranč", s:"1 ks", p:"105 Kč" },
       ]
     },
     {
@@ -647,8 +647,8 @@ klub: {
         { n:"Zlatokopka", d:"Jägermeister Orange, tonic, pomeranč", p:"135 Kč" },
         { n:"Hendrick's + Thomas Henry", d:"Gin Hendrick's, Thomas Henry tonic", p:"150 Kč" },
         { n:"Malfy + Thomas Henry", d:"Gin Malfy, Thomas Henry tonic", p:"150 Kč" },
-        { n:"Alon Colada", p:"195 Kč" },
-        { n:"Ginger Papa", d:"Don Papa Masskara, limeta, Thomas Henry ginger", p:"195 Kč" },
+        { n:"Alon Colada", d:"Don Papa Alon, smetana, kokosové pyré, ananasové pyré", p:"195 Kč" },
+        { n:"Ginger Papa", d:"Don Papa Masskara, ginger beer Thomas Henry, limeta", p:"195 Kč" },
         { n:"Piña Colada", d:"rum Malibu, smetana, kokosové pyré, ananasový džus", p:"145 Kč", i:"pinaColada.jpg" },
       ]
     },
@@ -802,6 +802,7 @@ klub: {
       items: [
         { n:"Aperol", s:"4 cl", p:"69 Kč" },
         { n:"Baileys", s:"4 cl", p:"65 Kč" },
+        { n:"Bartida Zelená", s:"4 cl", p:"60 Kč" },
         { n:"Becherovka", s:"4 cl", p:"60 Kč" },
         { n:"Becherovka Lemond", s:"4 cl", p:"60 Kč" },
         { n:"Bols Peach", s:"4 cl", p:"60 Kč" },
@@ -838,7 +839,7 @@ klub: {
         { n:"Absolut Kurant", s:"4 cl", p:"75 Kč" },
         { n:"Absolut Raspberri", d:"malina", s:"4 cl", p:"75 Kč" },
         { n:"Absolut Red Ruby", d:"grapefruit", s:"4 cl", p:"75 Kč" },
-        { n:"Absolut Vanilia", s:"4 cl", p:"75 Kč" },
+        { n:"Absolut Vanilla", s:"4 cl", p:"75 Kč" },
         { n:"Amundsen Fusion", d:"meloun", s:"4 cl", p:"65 Kč" },
         { n:"Grey Goose", s:"4 cl", p:"130 Kč" },
         { n:"Ketel One", s:"4 cl", p:"90 Kč" },
@@ -851,7 +852,8 @@ klub: {
       items: [
         { n:"Abuelo 15 yo Napoleon", s:"4 cl", p:"260 Kč", i:"abuelo-napoleon.jpg" },
         { n:"Austrian Empire Navy", s:"4 cl", p:"130 Kč" },
-        { n:"Bacardi", s:"4 cl", p:"70 Kč" },
+        { n:"Bacardi Carta Blanca", s:"4 cl", p:"70 Kč" },
+        { n:"Bacardi Carta Negra", s:"4 cl", p:"70 Kč" },
         { n:"Božkov", s:"4 cl", p:"60 Kč" },
         { n:"Božkov Republika", s:"4 cl", p:"70 Kč" },
         { n:"Captain Bucanero", s:"4 cl", p:"89 Kč", i:"capitanBucanero.jpg" },
@@ -859,7 +861,7 @@ klub: {
         { n:"Captain Morgan Spiced Gold", s:"4 cl", p:"70 Kč", i:"capitanMorganBlackSpiced.jpg" },
         { n:"Diplomatico", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
         { n:"Don Papa", s:"4 cl", p:"135 Kč", i:"donPapa-rum.jpg" },
-        { n:"Don Papa Alon", s:"4 cl", p:"135 Kč" },
+        { n:"Don Papa Alon", s:"4 cl", p:"150 Kč" },
         { n:"Don Papa Baroko", s:"4 cl", p:"160 Kč", i:"donPapa-baroko.jpg" },
         { n:"Don Papa Gayuma", s:"4 cl", p:"270 Kč", i:"donPapa-gayuma.jpg" },
         { n:"Don Papa Masskara", s:"4 cl", p:"150 Kč", i:"donPap-masskara.jpg" },
@@ -904,7 +906,7 @@ klub: {
         { n:"Tanqueray", s:"4 cl", p:"95 Kč" },
         { n:"Tanqueray 0%", s:"4 cl", p:"110 Kč", i:"tanquerayAlcoFree.jpg" },
         { n:"Tanqueray No. TEN", s:"4 cl", p:"115 Kč", i:"noTen.jpg" },
-        { n:"Tanqueray Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
+        { n:"Tanqueray Blackcurrant Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
       ]
     },
     {
@@ -964,7 +966,7 @@ dvorek: {
       cat: "Ledová káva", icon: "coffee",
       items: [
         { n:"Espresso na ledu", s:"9 g", p:"60 Kč" },
-        { n:"Espresso Tonic", s:"18 g", p:"100 Kč" },
+        { n:"Espresso Tonic", s:"9 g", p:"95 Kč" },
         { n:"Ledové Latte", s:"9 g", p:"85 Kč" },
         { n:"Ledové Cappuccino", s:"9 g", p:"80 Kč" },
       ]
@@ -1025,7 +1027,7 @@ dvorek: {
         { n:"Virgin Sunrise", d:"pomerančový džus, grenadina, soda", s:"1 ks", p:"100 Kč" },
         { n:"Virgin Paloma", d:"limetková šťáva, Thomas Henry grep, špetka soli, soda", s:"1 ks", p:"120 Kč" },
         { n:"Elderflower Fizz 0.0", d:"bezový sirup, limetková šťáva, máta, soda", s:"1 ks", p:"100 Kč" },
-        { n:"Crodino Spritz", d:"Crodino, soda, pomeranč", s:"1 ks", p:"105 Kč" },
+        { n:"Crodino", d:"Biondo / Rosso, soda, pomeranč", s:"1 ks", p:"105 Kč" },
       ]
     },
     {
@@ -1095,7 +1097,8 @@ dvorek: {
         { n:"Hendrick's + Thomas Henry", d:"Gin Hendrick's, Thomas Henry tonic", p:"150 Kč" },
         { n:"Malfy + Thomas Henry", d:"Gin Malfy, Thomas Henry tonic", p:"150 Kč" },
         { n:"Jack Daniel's Limonade", d:"Jack Daniel's, citronová limonáda", p:"150 Kč" },
-        { n:"Ginger Papa", d:"Don Papa Masskara, limeta, Thomas Henry ginger", p:"195 Kč" },
+        { n:"Alon Colada", d:"Don Papa Alon, smetana, kokosové pyré, ananasové pyré", p:"195 Kč" },
+        { n:"Ginger Papa", d:"Don Papa Masskara, ginger beer Thomas Henry, limeta", p:"195 Kč" },
         { n:"Piña Colada", d:"rum Malibu, smetana, kokosové pyré, ananasový džus", p:"145 Kč", i:"pinaColada.jpg" },
       ]
     },
@@ -1130,6 +1133,7 @@ dvorek: {
       items: [
         { n:"Aperol", s:"4 cl", p:"69 Kč" },
         { n:"Baileys", s:"4 cl", p:"65 Kč" },
+        { n:"Bartida Zelená", s:"4 cl", p:"60 Kč" },
         { n:"Becherovka", s:"4 cl", p:"60 Kč" },
         { n:"Becherovka Lemond", s:"4 cl", p:"60 Kč" },
         { n:"Bols Peach", s:"4 cl", p:"60 Kč" },
@@ -1166,7 +1170,7 @@ dvorek: {
         { n:"Absolut Kurant", s:"4 cl", p:"75 Kč" },
         { n:"Absolut Raspberri", d:"malina", s:"4 cl", p:"75 Kč" },
         { n:"Absolut Red Ruby", d:"grapefruit", s:"4 cl", p:"75 Kč" },
-        { n:"Absolut Vanilia", s:"4 cl", p:"75 Kč" },
+        { n:"Absolut Vanilla", s:"4 cl", p:"75 Kč" },
         { n:"Amundsen Fusion", d:"meloun", s:"4 cl", p:"65 Kč" },
         { n:"Babička", s:"4 cl", p:"125 Kč", i:"babicka.jpg" },
         { n:"Grey Goose", s:"4 cl", p:"130 Kč" },
@@ -1180,7 +1184,8 @@ dvorek: {
       items: [
         { n:"Abuelo 15 yo Napoleon", s:"4 cl", p:"260 Kč", i:"abuelo-napoleon.jpg" },
         { n:"Austrian Empire Navy", s:"4 cl", p:"130 Kč" },
-        { n:"Bacardi", s:"4 cl", p:"70 Kč" },
+        { n:"Bacardi Carta Blanca", s:"4 cl", p:"70 Kč" },
+        { n:"Bacardi Carta Negra", s:"4 cl", p:"70 Kč" },
         { n:"Božkov", s:"4 cl", p:"60 Kč" },
         { n:"Božkov Republika", s:"4 cl", p:"70 Kč" },
         { n:"Captain Bucanero", s:"4 cl", p:"89 Kč", i:"capitanBucanero.jpg" },
@@ -1188,7 +1193,7 @@ dvorek: {
         { n:"Captain Morgan Spiced Gold", s:"4 cl", p:"70 Kč", i:"capitanMorganBlackSpiced.jpg" },
         { n:"Diplomatico", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
         { n:"Don Papa", s:"4 cl", p:"135 Kč", i:"donPapa-rum.jpg" },
-        { n:"Don Papa Alon", s:"4 cl", p:"135 Kč" },
+        { n:"Don Papa Alon", s:"4 cl", p:"150 Kč" },
         { n:"Don Papa Baroko", s:"4 cl", p:"160 Kč", i:"donPapa-baroko.jpg" },
         { n:"Don Papa Gayuma", s:"4 cl", p:"270 Kč", i:"donPapa-gayuma.jpg" },
         { n:"Don Papa Masskara", s:"4 cl", p:"150 Kč", i:"donPap-masskara.jpg" },
@@ -1232,7 +1237,7 @@ dvorek: {
         { n:"Tanqueray 0%", s:"4 cl", p:"110 Kč", i:"tanquerayAlcoFree.jpg" },
         { n:"Tanqueray Flor de Sevilla", s:"4 cl", p:"85 Kč" },
         { n:"Tanqueray No. TEN", s:"4 cl", p:"115 Kč", i:"noTen.jpg" },
-        { n:"Tanqueray Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
+        { n:"Tanqueray Blackcurrant Royale", s:"4 cl", p:"105 Kč", i:"tanquerayRoyale.jpg" },
       ]
     },
     {
@@ -1371,7 +1376,7 @@ bistro: {
       items: [
         { n:"Espresso na ledu", s:"9 g", p:"60 Kč" },
         { n:"Affogato", s:"9 g", p:"85 Kč" },
-        { n:"Espresso Tonic", s:"18 g", p:"100 Kč" },
+        { n:"Espresso Tonic", s:"9 g", p:"95 Kč" },
         { n:"Ledové Latte", s:"9 g", p:"85 Kč" },
         { n:"Ledové Cappuccino", s:"9 g", p:"80 Kč" },
         { n:"Frappé", s:"9 g", p:"90 Kč" },
@@ -1415,7 +1420,7 @@ bistro: {
       cat: "Nealko drinky", icon: "soda",
       items: [
         { n:"Tanqueray 0% + Tonic", d:"Tanqueray 0% gin + Targa tonic", s:"1 ks", p:"120 Kč" },
-        { n:"Crodino Spritz", d:"Crodino, soda, pomeranč", s:"1 ks", p:"105 Kč" },
+        { n:"Crodino", d:"Biondo / Rosso, soda, pomeranč", s:"1 ks", p:"105 Kč" },
       ]
     },
     {
@@ -1433,8 +1438,8 @@ bistro: {
         { n:"Sex on the Beach", d:"vodka, broskvový likér, pomerančový džus, grenadina", p:"155 Kč", i:"SexOnTheBeach.jpg" },
         { n:"Long Island Iced Tea", d:"vodka, gin, bílý rum, tequila, Cointreau, citronová šťáva, Royal Crown Cola", p:"230 Kč" },
         { n:"Negroni", d:"gin, Campari, Martini Rosso", p:"170 Kč" },
-        { n:"Alon Colada", p:"195 Kč" },
-        { n:"Ginger Papa", d:"Don Papa Masskara, limeta, Thomas Henry ginger", p:"195 Kč" },
+        { n:"Alon Colada", d:"Don Papa Alon, smetana, kokosové pyré, ananasové pyré", p:"195 Kč" },
+        { n:"Ginger Papa", d:"Don Papa Masskara, ginger beer Thomas Henry, limeta", p:"195 Kč" },
         { n:"Piña Colada", d:"rum Malibu, smetana, kokosové pyré, ananasový džus", p:"145 Kč", i:"pinaColada.jpg" },
       ]
     },
@@ -1498,6 +1503,7 @@ bistro: {
         { n:"Jägermeister", s:"4 cl", p:"70 Kč" },
         { n:"Limoncello", s:"4 cl", p:"69 Kč" },
         { n:"Peprmintový likér", s:"4 cl", p:"60 Kč" },
+        { n:"Polar Jahoda", s:"4 cl", p:"60 Kč" },
         { n:"Vaječný likér Bartida", s:"4 cl", p:"60 Kč" },
       ]
     },
@@ -1513,6 +1519,7 @@ bistro: {
       items: [
         { n:"Absolut", s:"4 cl", p:"75 Kč" },
         { n:"Babička", s:"4 cl", p:"125 Kč", i:"babicka.jpg" },
+        { n:"Grey Goose", s:"4 cl", p:"130 Kč" },
         { n:"Ketel One", s:"4 cl", p:"90 Kč" },
       ]
     },
@@ -1522,7 +1529,7 @@ bistro: {
         { n:"Božkov Republika", s:"4 cl", p:"70 Kč" },
         { n:"Diplomatico", s:"4 cl", p:"135 Kč", i:"diplomatico.jpg" },
         { n:"Don Papa", s:"4 cl", p:"135 Kč", i:"donPapa-rum.jpg" },
-        { n:"Don Papa Alon", s:"4 cl", p:"135 Kč" },
+        { n:"Don Papa Alon", s:"4 cl", p:"150 Kč" },
         { n:"Don Papa Baroko", s:"4 cl", p:"160 Kč", i:"donPapa-baroko.jpg" },
         { n:"Don Papa Gayuma", s:"4 cl", p:"270 Kč", i:"donPapa-gayuma.jpg" },
         { n:"Don Papa Masskara", s:"4 cl", p:"150 Kč", i:"donPap-masskara.jpg" },

@@ -35,6 +35,8 @@
 
     const card = document.createElement("div");
     card.className = "program-card";
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (d < today) card.classList.add("is-past");
     card.setAttribute("data-animate", "");
 
     const dateBox = document.createElement("div");
@@ -73,6 +75,14 @@
       desc.className = "program-desc";
       desc.textContent = ev.desc;
       body.appendChild(desc);
+    }
+
+    if (ev.tickets) {
+      const btn = document.createElement("a");
+      btn.className = "program-btn";
+      btn.href = "#vstupenky";
+      btn.textContent = "Koupit vstupenku";
+      body.appendChild(btn);
     }
 
     card.appendChild(body);
