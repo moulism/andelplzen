@@ -6,7 +6,7 @@
    Items with a photo (i) are shown as cards with the photo; items without a
    photo have no placeholder image at all — they are shown as a compact
    two-column price list below the photo cards (within the same group). */
-(function () {
+(async function () {
   const root = document.getElementById("menu-dynamic");
   const tabsRoot = document.getElementById("menu-tabs");
   if (!root || typeof MENUS === "undefined") return;
@@ -16,6 +16,18 @@
   if (!data) return;
 
   const IMG_BASE = "images/drinks/";
+
+  /* Fotky nahrané správci v admin.html mají přednost před fotkami v menu-data.js.
+     Když se nepodaří načíst (výpadek), použijí se původní fotky. */
+  let OVERRIDES = {};
+  if (window.AndelWeb) {
+    try { OVERRIDES = await AndelWeb.photoMap(); } catch (e) { OVERRIDES = {}; }
+  }
+  function photoOf(item, cat) {
+    const k = window.AndelWeb ? AndelWeb.itemKey(venue, cat, item.n) : "";
+    if (k && OVERRIDES[k]) return OVERRIDES[k];
+    return item.i ? IMG_BASE + item.i : "";
+  }
 
   function slug(str) {
     return str
@@ -51,14 +63,15 @@
     });
 
     function buildCard(item) {
+      const photo = photoOf(item, section.cat);
       const card = document.createElement("div");
-      card.className = "menu-item" + (item.i ? "" : " menu-item--nophoto");
+      card.className = "menu-item" + (photo ? "" : " menu-item--nophoto");
 
-      if (item.i) {
+      if (photo) {
         const thumb = document.createElement("div");
         thumb.className = "menu-item-thumb";
         const img = document.createElement("img");
-        img.src = IMG_BASE + item.i;
+        img.src = photo;
         img.alt = item.n;
         img.loading = "lazy";
         thumb.appendChild(img);
@@ -100,8 +113,8 @@
     }
 
     groups.forEach(gr => {
-      const withPhoto = gr.items.filter(i => i.i);
-      const noPhoto = gr.items.filter(i => !i.i);
+      const withPhoto = gr.items.filter(i => photoOf(i, section.cat));
+      const noPhoto = gr.items.filter(i => !photoOf(i, section.cat));
 
       if (withPhoto.length) {
         const grid = document.createElement("div");
