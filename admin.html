@@ -84,13 +84,26 @@
   <!-- ===== PŘIHLÁŠENÍ / REGISTRACE ===== -->
   <section id="view-auth" class="hidden">
     <div class="adm-tabs" id="auth-tabs">
-      <button data-t="login" class="active">Přihlášení</button>
+      <button data-t="pin" class="active">Jméno a PIN</button>
+      <button data-t="login">E-mail</button>
       <button data-t="register">Registrace</button>
       <button data-t="forgot">Zapomenuté heslo</button>
     </div>
 
-    <div class="adm-card" id="auth-login">
-      <h2>Přihlášení</h2>
+    <div class="adm-card" id="auth-pin">
+      <h2>Přihlášení jménem a PINem</h2>
+      <p class="hint" style="margin-top:0">Pro adminy z aplikace pro brigádníky — stejné jméno a PIN jako tam.</p>
+      <form id="f-pin" autocomplete="off">
+        <label for="p-name">Jméno a příjmení</label>
+        <input type="text" id="p-name" autocomplete="off" required>
+        <label for="p-pin">PIN (4 číslice)</label>
+        <input type="password" id="p-pin" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" required>
+        <button class="btn" type="submit">Přihlásit se</button>
+      </form>
+    </div>
+
+    <div class="adm-card hidden" id="auth-login">
+      <h2>Přihlášení e-mailem</h2>
       <form id="f-login" autocomplete="on">
         <label for="l-email">E-mail</label>
         <input type="email" id="l-email" autocomplete="email" required>
@@ -98,7 +111,7 @@
         <input type="password" id="l-pass" autocomplete="current-password" required>
         <button class="btn" type="submit">Přihlásit se</button>
       </form>
-      <p class="hint">Stejný e-mail a heslo funguje i v aplikaci pro brigádníky (záložka E-mail), pokud je propojíš v sekci Účet.</p>
+      <p class="hint">Pro správce, kteří mají zaregistrovaný e-mail.</p>
     </div>
 
     <div class="adm-card hidden" id="auth-register">
@@ -225,7 +238,7 @@
     <div id="tab-admins" class="hidden">
       <div class="adm-card">
         <h2>Správci webu</h2>
-        <p class="hint">Tyto e-maily smějí upravovat web. Člověk se nejdřív sám zaregistruje (záložka Registrace na přihlašovací stránce) a potvrdí e-mail; ty jeho e-mail přidáš sem.</p>
+        <p class="hint">Tyto e-maily smějí upravovat web. Admini z aplikace pro brigádníky se přihlašují jménem a PINem a tady uvedeni být nemusejí. Člověk se nejdřív sám zaregistruje (záložka Registrace na přihlašovací stránce) a potvrdí e-mail; ty jeho e-mail přidáš sem.</p>
         <div id="adm-list"></div>
         <form id="f-addadm">
           <label for="aa-email">Přidat správce (e-mail)</label>
@@ -240,7 +253,11 @@
 
     <!-- ÚČET -->
     <div id="tab-account" class="hidden">
-      <div class="adm-card">
+      <div class="adm-card hidden" id="acc-pin">
+        <h2>Přihlášení PINem</h2>
+        <p>Jsi přihlášen/a jménem a PINem z aplikace pro brigádníky. Heslo ani e-mail tady nemáš — při změně PINu v aplikaci se příště přihlásíš novým PINem.</p>
+      </div>
+      <div class="adm-card" id="acc-link">
         <h2>Propojení s aplikací pro brigádníky</h2>
         <p>Aby ses mohl/a stejným e-mailem a heslem přihlašovat i do aplikace pro brigádníky, jednorázově ji propoj se svým profilem: zadej jméno a PIN, které tam používáš.</p>
         <form id="f-link">
@@ -253,7 +270,7 @@
         <div id="lk-msg"></div>
         <p class="hint">Po propojení se v aplikaci přihlásíš v záložce „E-mail“. PIN dál funguje.</p>
       </div>
-      <div class="adm-card">
+      <div class="adm-card" id="acc-pass">
         <h2>Změna hesla</h2>
         <form id="f-pass">
           <label for="pw-new">Nové heslo (min. 8 znaků)</label>
@@ -270,7 +287,7 @@
         <h2>Jak to funguje</h2>
         <p><b>Týdenní menu.</b> Založ menu pro Café, Music Club nebo Dvorek, nastav, od kdy do kdy platí, a vyplň položky. Na webu se samo ukáže v den „od“ a samo zmizí po dni „do“. Tlačítkem „Zkopírovat na další týden“ si ušetříš práci — zkopíruje položky a posune data o 7 dní.</p>
         <p><b>Fotky k položkám.</b> V záložce Fotky vyber menu a kategorii a u položky nahraj fotku. Obrázky se při nahrání samy zmenší, takže stačí fotka z telefonu.</p>
-        <p><b>Správci.</b> Přidání dalšího správce: nechej ho zaregistrovat se, potvrdit e-mail a pak jeho e-mail přidej v záložce Správci.</p>
+        <p><b>Správci.</b> Admini z aplikace pro brigádníky (role admin) se přihlásí rovnou jménem a PINem, nic nastavovat nemusí. Ostatní se zaregistrují e-mailem, potvrdí ho a ty jejich e-mail přidáš v záložce Správci.</p>
         <p><b>Něco nejde?</b> Obnov stránku (Ctrl/Cmd+Shift+R). Pokud problém trvá, napiš vývojáři webu.</p>
       </div>
     </div>
@@ -321,7 +338,9 @@
     isAdmin = r.data === true;
     show("loading", false);
     if (!isAdmin) { $("na-email").textContent = user.email; show("view-noaccess", true); return; }
-    $("u-email").textContent = user.email;
+    const viaPin = /@staff\.andel\.invalid$/.test(user.email || "");
+    $("u-email").textContent = viaPin ? ((user.user_metadata && user.user_metadata.name) || "admin") + " (PIN)" : user.email;
+    show("acc-link", !viaPin); show("acc-pass", !viaPin); show("acc-pin", viaPin);
     show("view-admin", true);
     loadMenus(); loadAdmins(); initPhotos();
   }
@@ -329,9 +348,28 @@
   /* ---------- přihlášení ---------- */
   document.querySelectorAll("#auth-tabs button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll("#auth-tabs button").forEach(x => x.classList.toggle("active", x === b));
-    ["login", "register", "forgot"].forEach(t => show("auth-" + t, t === b.dataset.t));
+    ["pin", "login", "register", "forgot"].forEach(t => show("auth-" + t, t === b.dataset.t));
     msg("auth-msg", "");
   }));
+  $("f-pin").addEventListener("submit", async e => {
+    e.preventDefault(); msg("auth-msg", "");
+    const submit = e.target.querySelector("button"); submit.disabled = true;
+    try {
+      const r = await fetch(AndelWeb.url + "/functions/v1/web-admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: AndelWeb.key, Authorization: "Bearer " + AndelWeb.key },
+        body: JSON.stringify({ name: $("p-name").value.trim(), pin: $("p-pin").value.trim() })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.session) { $("p-pin").value = ""; msg("auth-msg", j.error || "Přihlášení se nepovedlo.", "err"); return; }
+      const { error } = await db.auth.setSession(j.session);
+      if (error) return msg("auth-msg", errText(error), "err");
+      $("p-pin").value = "";
+      refresh();
+    } catch (err) {
+      msg("auth-msg", "Nepodařilo se spojit se serverem. Zkus to znovu.", "err");
+    } finally { submit.disabled = false; }
+  });
   $("f-login").addEventListener("submit", async e => {
     e.preventDefault(); msg("auth-msg", "");
     const { error } = await db.auth.signInWithPassword({ email: $("l-email").value.trim(), password: $("l-pass").value });
