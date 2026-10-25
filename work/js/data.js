@@ -2670,3 +2670,28 @@ async function addStanovisteRow(venueId, slug, label, ikona) {
   STANOVISTE_ZAKLAD[venueId].push(res.data[0]);
   return { ok:true, row:res.data[0] };
 }
+
+// ===================== VÝPLATA VŽDY 20. V MĚSÍCI =====================
+var VYPLATA_DEN = 20;
+// Nejbližší výplata: 20. tohoto měsíce, nebo (po 20.) 20. příštího měsíce.
+function getNextPayoutDate(from) {
+  var d = from ? new Date(from.getTime()) : new Date();
+  var y = d.getFullYear(), m = d.getMonth();
+  if (d.getDate() > VYPLATA_DEN) { m += 1; if (m > 11) { m = 0; y += 1; } }
+  return new Date(y, m, VYPLATA_DEN);
+}
+function formatCzDate(d) {
+  return d.getDate() + '. ' + (d.getMonth()+1) + '. ' + d.getFullYear();
+}
+function getPayoutInfoText(from) {
+  return '💵 Výplata je vždy ' + VYPLATA_DEN + '. dne v měsíci. Nejbližší výplata: ' + formatCzDate(getNextPayoutDate(from)) + '.';
+}
+function renderPayoutInfo() {
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+  var els = document.querySelectorAll('.js-vyplata-info');
+  for (var i = 0; i < els.length; i++) els[i].textContent = getPayoutInfoText();
+}
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderPayoutInfo);
+  else renderPayoutInfo();
+}
