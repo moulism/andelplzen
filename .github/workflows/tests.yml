@@ -1,0 +1,27 @@
+name: Testy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Node testy aplikace pro brigádníky (work/js/data.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: work
+    steps:
+      - name: Stáhnout repozitář
+        uses: actions/checkout@v4
+
+      - name: Nastavit Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Spustit testy
+        run: npm test

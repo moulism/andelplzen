@@ -1,0 +1,2672 @@
+// data.js – Kosatka 2026 (Supabase)
+
+// ===================== SUPABASE =====================
+const SUPABASE_URL = 'https://gemjcncoeuzhytivixix.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlbWpjbmNvZXV6aHl0aXZpeGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4NjYyODEsImV4cCI6MjA5OTQ0MjI4MX0.sTnNsNc6_k0C_2U1xF1UuC-Te8ubTlgSWXIGkNZm9-M';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ====================================================
+
+// ===================== EDGE FUNCTIONS / PUSH =====================
+// Sdílené tajemství pro interní admin edge function (admin-worker-account) - stejná
+// úroveň zabezpečení jako zbytek appky, co běží na veřejném anon klíči.
+const ADMIN_FN_SECRET = 'fd8884deeefd8a7009c3e748c03fc382eb66c2a3099fee3c';
+const EDGE_FN_BASE = SUPABASE_URL + '/functions/v1';
+// VAPID veřejný klíč pro web push - veřejný záměrně (stejné jako anon klíč), soukromý klíč
+// zůstává jen v Supabase (tabulka app_secrets, čitelná pouze přes service_role v edge funkcích).
+const VAPID_PUBLIC_KEY = 'BLdWNFQmj1r74vztRXgbFqaz-SCyM1osgiVKyRK4FqqHnzV_HbSu5Cr6MF8zG7hyG24WTxax6lWxf_6Xj8bjS70';
+
+async function callAdminFn(action, authUserId) {
+  try {
+    var res = await fetch(EDGE_FN_BASE + '/admin-worker-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, authUserId: authUserId, secret: ADMIN_FN_SECRET })
+    });
+    var json = await res.json();
+    if (!res.ok) return { ok:false, error: json.error || ('HTTP '+res.status) };
+    return { ok:true, data: json };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+
+var HODINOVA_SAZBA = 180;
+
+// Stanoviště — Restaurace = 200 Kč/h, ostatní = 180 Kč/h
+const STANOVISTE = [
+  { id:"vycep",      label:"Výčep",        color:"#dbeafe", text:"#1e40af", icon:"🍺", cas:"10:00–22:00", sazba:180 },
+  { id:"restaurace", label:"Restaurace",   color:"#fef3c7", text:"#92400e", icon:"🍽️", cas:"10:00–22:00", sazba:200 },
+  { id:"kuchynA",   label:"Kuchyň A",     color:"#fde68a", text:"#78350f", icon:"🍳", cas:"10:00–22:00", sazba:180 },
+  { id:"kuchynB",   label:"Kuchyň B",     color:"#fed7aa", text:"#9a3412", icon:"🍳", cas:"10:00–22:00", sazba:180 },
+  { id:"recepce",   label:"Recepce",      color:"#d1fae5", text:"#065f46", icon:"🏨", cas:"9:00–21:00",  sazba:180 },
+  { id:"kramek",    label:"Krámek",       color:"#ede9fe", text:"#5b21b6", icon:"🛒", cas:"7:00–19:00",  sazba:180 },
+  { id:"slapada",   label:"Šlapadla",     color:"#cffafe", text:"#164e63", icon:"🚣", cas:"10:00–19:00", sazba:180 },
+  { id:"obcerstv",  label:"Občerstvení",  color:"#fce7f3", text:"#9d174d", icon:"🥤", cas:"10:00–22:00", sazba:180 },
+  { id:"zmrzlina",  label:"Zmrzlina",     color:"#e0e7ff", text:"#3730a3", icon:"🍦", cas:"10:00–19:00", sazba:180 },
+];
+
+const UCTY_STANOVISTE = ["kramek","vycep","obcerstv","restaurace","zmrzlina"];
+const PENALIZACE_DUVODY = [
+  "Neoprávněný vstup na plac (−300 Kč)",
+  "Ubytování neoprávněné osoby (−300 Kč)",
+  "Nedokončený úklid toalet (−300 Kč)",
+  "Jiné",
+];
+const ROZPIS_MESICE = [
+  {m:6,label:"Červen"},{m:7,label:"Červenec"},{m:8,label:"Srpen"},{m:9,label:"Září"}
+];
+const MUZIKA_DNY = [3,4,5,6]; // St, Čt, Pá, So
+
+// ===================== UKLID PLAN =====================
+const UKLID_PLAN = {
+  "2026-06-26":2,"2026-06-27":4,"2026-06-28":10,"2026-06-29":14,"2026-06-30":15,
+  "2026-07-01":2,"2026-07-02":4,"2026-07-03":10,"2026-07-04":14,"2026-07-05":2,
+  "2026-07-06":5,"2026-07-07":6,"2026-07-08":9,"2026-07-09":16,"2026-07-10":5,
+  "2026-07-11":17,"2026-07-12":6,"2026-07-13":15,"2026-07-14":17,"2026-07-15":4,
+  "2026-07-16":5,"2026-07-17":9,"2026-07-18":15,"2026-07-19":9,"2026-07-20":8,
+  "2026-07-21":12,"2026-07-22":8,"2026-07-23":12,"2026-07-24":6,"2026-07-25":8,
+  "2026-07-26":12,"2026-07-27":13,"2026-07-28":10,"2026-07-29":13,"2026-07-30":2,
+  "2026-07-31":13,"2026-08-01":6,"2026-08-02":19,"2026-08-03":14,"2026-08-04":19,
+  "2026-08-05":8,"2026-08-06":19,"2026-08-07":9,"2026-08-08":12,"2026-08-09":14,
+  "2026-08-10":16,"2026-08-11":4,"2026-08-12":16,"2026-08-13":19,"2026-08-14":16,
+  "2026-08-15":2,"2026-08-16":4,"2026-08-17":6,"2026-08-18":10,"2026-08-19":8,
+  "2026-08-20":9,"2026-08-21":16,"2026-08-22":19,"2026-08-23":2,"2026-08-24":4,
+  "2026-08-25":8,"2026-08-26":10,"2026-08-27":16,"2026-08-28":19,"2026-08-29":2,
+  "2026-08-30":4
+};
+
+function getUklidWorker(dateStr) {
+  var wid = UKLID_PLAN[dateStr];
+  if (!wid) return null;
+  return getWorkerById(wid);
+}
+
+// ===================== WORKERS =====================
+var WORKERS = [
+  {id:1,  jmeno:"Matyáš Moulis",       pin:"5797", role:"admin", misto:null,       dostupnost:[]},
+  {id:2,  jmeno:"Marek Tykal",         pin:"2824", role:"user",  misto:"kuchynA",  dostupnost:["2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"]},
+  {id:3,  jmeno:"Matylda Troníčková",  pin:"1409", role:"user",  misto:"recepce",  dostupnost:["2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-30","2026-08-31"]},
+  {id:4,  jmeno:"Agáta Bůchová",       pin:"5506", role:"user",  misto:"slapada",  dostupnost:["2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"]},
+  {id:5,  jmeno:"Štěpánka Baslová",    pin:"5012", role:"user",  misto:"zmrzlina", dostupnost:["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19"]},
+  {id:6,  jmeno:"Vít Bradáč",          pin:"4657", role:"user",  misto:"obcerstv", dostupnost:["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-31"]},
+  {id:7,  jmeno:"Filip Basl",          pin:"3286", role:"user",  misto:"vycep",    dostupnost:["2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"]},
+  {id:8,  jmeno:"Bín Nguyen",          pin:"2679", role:"user",  misto:"zmrzlina", dostupnost:["2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"]},
+  {id:9,  jmeno:"Denis Šindler",       pin:"9935", role:"user",  misto:"vycep",    dostupnost:["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23"]},
+  {id:10, jmeno:"Gabriela Matoušková", pin:"2424", role:"user",  misto:null,       dostupnost:["2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-20","2026-07-21","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28"]},
+  {id:11, jmeno:"Eliška Provázková",   pin:"7912", role:"user",  misto:"obcerstv", dostupnost:["2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30"]},
+  {id:12, jmeno:"Viktorie Baťková",    pin:"1520", role:"user",  misto:"slapada",  dostupnost:["2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09"]},
+  {id:13, jmeno:"Jan Urban",           pin:"1488", role:"user",  misto:null,       dostupnost:["2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02"]},
+  {id:14, jmeno:"Lucie Seberova",      pin:"2535", role:"user",  misto:"kuchynB",  dostupnost:["2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-03","2026-07-04","2026-07-05","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09"]},
+  {id:15, jmeno:"Michaela Urbanová",   pin:"4582", role:"user",  misto:null,       dostupnost:["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-18","2026-07-19","2026-07-21","2026-07-22","2026-07-23","2026-07-25","2026-07-26","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23"]},
+  {id:16, jmeno:"Matěj Štůla",         pin:"4811", role:"user",  misto:"kuchynB",  dostupnost:["2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30"]},
+  {id:17, jmeno:"Honza Bradáč",        pin:"9279", role:"user",  misto:"kuchynB",  dostupnost:["2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26"]},
+  {id:19, jmeno:"Natálie Růžičková",   pin:"3847", role:"user",  misto:"kramek",   dostupnost:["2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-22","2026-08-23","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"]},
+];
+
+const SCHEDULE_DEFAULT = [{"id":1,"workerId":7,"datum":"2026-06-26","mistoId":"vycep"},{"id":2,"workerId":2,"datum":"2026-06-26","mistoId":"kuchynA"},{"id":3,"workerId":14,"datum":"2026-06-26","mistoId":"kuchynB"},{"id":4,"workerId":10,"datum":"2026-06-26","mistoId":"kramek"},{"id":5,"workerId":4,"datum":"2026-06-26","mistoId":"slapada"},{"id":6,"workerId":11,"datum":"2026-06-26","mistoId":"obcerstv"},{"id":7,"workerId":15,"datum":"2026-06-26","mistoId":"zmrzlina"},{"id":8,"workerId":7,"datum":"2026-06-27","mistoId":"vycep"},{"id":9,"workerId":2,"datum":"2026-06-27","mistoId":"kuchynA"},{"id":10,"workerId":14,"datum":"2026-06-27","mistoId":"kuchynB"},{"id":11,"workerId":10,"datum":"2026-06-27","mistoId":"kramek"},{"id":12,"workerId":4,"datum":"2026-06-27","mistoId":"slapada"},{"id":13,"workerId":11,"datum":"2026-06-27","mistoId":"obcerstv"},{"id":14,"workerId":15,"datum":"2026-06-27","mistoId":"zmrzlina"},{"id":15,"workerId":7,"datum":"2026-06-28","mistoId":"vycep"},{"id":16,"workerId":2,"datum":"2026-06-28","mistoId":"kuchynA"},{"id":17,"workerId":14,"datum":"2026-06-28","mistoId":"kuchynB"},{"id":18,"workerId":10,"datum":"2026-06-28","mistoId":"kramek"},{"id":19,"workerId":4,"datum":"2026-06-28","mistoId":"slapada"},{"id":20,"workerId":11,"datum":"2026-06-28","mistoId":"obcerstv"},{"id":21,"workerId":15,"datum":"2026-06-28","mistoId":"zmrzlina"},{"id":22,"workerId":7,"datum":"2026-06-29","mistoId":"vycep"},{"id":23,"workerId":2,"datum":"2026-06-29","mistoId":"kuchynA"},{"id":24,"workerId":14,"datum":"2026-06-29","mistoId":"kuchynB"},{"id":25,"workerId":10,"datum":"2026-06-29","mistoId":"kramek"},{"id":26,"workerId":4,"datum":"2026-06-29","mistoId":"slapada"},{"id":27,"workerId":11,"datum":"2026-06-29","mistoId":"obcerstv"},{"id":28,"workerId":15,"datum":"2026-06-29","mistoId":"zmrzlina"},{"id":29,"workerId":7,"datum":"2026-06-30","mistoId":"vycep"},{"id":30,"workerId":2,"datum":"2026-06-30","mistoId":"kuchynA"},{"id":31,"workerId":14,"datum":"2026-06-30","mistoId":"kuchynB"},{"id":32,"workerId":10,"datum":"2026-06-30","mistoId":"kramek"},{"id":33,"workerId":4,"datum":"2026-06-30","mistoId":"slapada"},{"id":34,"workerId":11,"datum":"2026-06-30","mistoId":"obcerstv"},{"id":35,"workerId":15,"datum":"2026-06-30","mistoId":"zmrzlina"},{"id":36,"workerId":7,"datum":"2026-07-01","mistoId":"vycep"},{"id":37,"workerId":2,"datum":"2026-07-01","mistoId":"kuchynA"},{"id":38,"workerId":14,"datum":"2026-07-01","mistoId":"kuchynB"},{"id":39,"workerId":3,"datum":"2026-07-01","mistoId":"recepce"},{"id":41,"workerId":4,"datum":"2026-07-01","mistoId":"slapada"},{"id":42,"workerId":11,"datum":"2026-07-01","mistoId":"obcerstv"},{"id":43,"workerId":10,"datum":"2026-07-01","mistoId":"zmrzlina"},{"id":44,"workerId":7,"datum":"2026-07-02","mistoId":"vycep"},{"id":45,"workerId":2,"datum":"2026-07-02","mistoId":"kuchynA"},{"id":46,"workerId":14,"datum":"2026-07-02","mistoId":"kuchynB"},{"id":47,"workerId":3,"datum":"2026-07-02","mistoId":"recepce"},{"id":49,"workerId":4,"datum":"2026-07-02","mistoId":"slapada"},{"id":50,"workerId":11,"datum":"2026-07-02","mistoId":"obcerstv"},{"id":51,"workerId":10,"datum":"2026-07-02","mistoId":"zmrzlina"},{"id":52,"workerId":7,"datum":"2026-07-03","mistoId":"vycep"},{"id":53,"workerId":2,"datum":"2026-07-03","mistoId":"kuchynA"},{"id":54,"workerId":14,"datum":"2026-07-03","mistoId":"kuchynB"},{"id":55,"workerId":3,"datum":"2026-07-03","mistoId":"recepce"},{"id":57,"workerId":4,"datum":"2026-07-03","mistoId":"slapada"},{"id":58,"workerId":11,"datum":"2026-07-03","mistoId":"obcerstv"},{"id":59,"workerId":10,"datum":"2026-07-03","mistoId":"zmrzlina"},{"id":60,"workerId":7,"datum":"2026-07-04","mistoId":"vycep"},{"id":61,"workerId":2,"datum":"2026-07-04","mistoId":"kuchynA"},{"id":62,"workerId":14,"datum":"2026-07-04","mistoId":"kuchynB"},{"id":63,"workerId":3,"datum":"2026-07-04","mistoId":"recepce"},{"id":65,"workerId":4,"datum":"2026-07-04","mistoId":"slapada"},{"id":66,"workerId":11,"datum":"2026-07-04","mistoId":"obcerstv"},{"id":67,"workerId":10,"datum":"2026-07-04","mistoId":"zmrzlina"},{"id":68,"workerId":7,"datum":"2026-07-05","mistoId":"vycep"},{"id":69,"workerId":2,"datum":"2026-07-05","mistoId":"kuchynA"},{"id":70,"workerId":14,"datum":"2026-07-05","mistoId":"kuchynB"},{"id":71,"workerId":3,"datum":"2026-07-05","mistoId":"recepce"},{"id":73,"workerId":4,"datum":"2026-07-05","mistoId":"slapada"},{"id":74,"workerId":11,"datum":"2026-07-05","mistoId":"obcerstv"},{"id":75,"workerId":10,"datum":"2026-07-05","mistoId":"zmrzlina"},{"id":76,"workerId":9,"datum":"2026-07-06","mistoId":"vycep"},{"id":77,"workerId":2,"datum":"2026-07-06","mistoId":"kuchynA"},{"id":78,"workerId":14,"datum":"2026-07-06","mistoId":"kuchynB"},{"id":79,"workerId":3,"datum":"2026-07-06","mistoId":"recepce"},{"id":80,"workerId":16,"datum":"2026-07-06","mistoId":"kramek"},{"id":81,"workerId":4,"datum":"2026-07-06","mistoId":"slapada"},{"id":82,"workerId":6,"datum":"2026-07-06","mistoId":"obcerstv"},{"id":83,"workerId":5,"datum":"2026-07-06","mistoId":"zmrzlina"},{"id":84,"workerId":9,"datum":"2026-07-07","mistoId":"vycep"},{"id":85,"workerId":2,"datum":"2026-07-07","mistoId":"kuchynA"},{"id":86,"workerId":14,"datum":"2026-07-07","mistoId":"kuchynB"},{"id":87,"workerId":3,"datum":"2026-07-07","mistoId":"recepce"},{"id":88,"workerId":16,"datum":"2026-07-07","mistoId":"kramek"},{"id":89,"workerId":4,"datum":"2026-07-07","mistoId":"slapada"},{"id":90,"workerId":6,"datum":"2026-07-07","mistoId":"obcerstv"},{"id":91,"workerId":5,"datum":"2026-07-07","mistoId":"zmrzlina"},{"id":92,"workerId":9,"datum":"2026-07-08","mistoId":"vycep"},{"id":93,"workerId":2,"datum":"2026-07-08","mistoId":"kuchynA"},{"id":94,"workerId":14,"datum":"2026-07-08","mistoId":"kuchynB"},{"id":95,"workerId":3,"datum":"2026-07-08","mistoId":"recepce"},{"id":96,"workerId":16,"datum":"2026-07-08","mistoId":"kramek"},{"id":97,"workerId":4,"datum":"2026-07-08","mistoId":"slapada"},{"id":98,"workerId":6,"datum":"2026-07-08","mistoId":"obcerstv"},{"id":99,"workerId":5,"datum":"2026-07-08","mistoId":"zmrzlina"},{"id":100,"workerId":9,"datum":"2026-07-09","mistoId":"vycep"},{"id":101,"workerId":2,"datum":"2026-07-09","mistoId":"kuchynA"},{"id":102,"workerId":14,"datum":"2026-07-09","mistoId":"kuchynB"},{"id":103,"workerId":3,"datum":"2026-07-09","mistoId":"recepce"},{"id":104,"workerId":16,"datum":"2026-07-09","mistoId":"kramek"},{"id":105,"workerId":4,"datum":"2026-07-09","mistoId":"slapada"},{"id":106,"workerId":6,"datum":"2026-07-09","mistoId":"obcerstv"},{"id":107,"workerId":5,"datum":"2026-07-09","mistoId":"zmrzlina"},{"id":108,"workerId":9,"datum":"2026-07-10","mistoId":"vycep"},{"id":109,"workerId":2,"datum":"2026-07-10","mistoId":"kuchynA"},{"id":110,"workerId":14,"datum":"2026-07-10","mistoId":"kuchynB"},{"id":111,"workerId":3,"datum":"2026-07-10","mistoId":"recepce"},{"id":112,"workerId":16,"datum":"2026-07-10","mistoId":"kramek"},{"id":113,"workerId":4,"datum":"2026-07-10","mistoId":"slapada"},{"id":114,"workerId":6,"datum":"2026-07-10","mistoId":"obcerstv"},{"id":115,"workerId":5,"datum":"2026-07-10","mistoId":"zmrzlina"},{"id":116,"workerId":9,"datum":"2026-07-11","mistoId":"vycep"},{"id":117,"workerId":2,"datum":"2026-07-11","mistoId":"kuchynA"},{"id":118,"workerId":17,"datum":"2026-07-11","mistoId":"kuchynB"},{"id":119,"workerId":3,"datum":"2026-07-11","mistoId":"recepce"},{"id":120,"workerId":16,"datum":"2026-07-11","mistoId":"kramek"},{"id":121,"workerId":4,"datum":"2026-07-11","mistoId":"slapada"},{"id":122,"workerId":6,"datum":"2026-07-11","mistoId":"obcerstv"},{"id":123,"workerId":5,"datum":"2026-07-11","mistoId":"zmrzlina"},{"id":124,"workerId":9,"datum":"2026-07-12","mistoId":"vycep"},{"id":125,"workerId":2,"datum":"2026-07-12","mistoId":"kuchynA"},{"id":126,"workerId":17,"datum":"2026-07-12","mistoId":"kuchynB"},{"id":127,"workerId":3,"datum":"2026-07-12","mistoId":"recepce"},{"id":128,"workerId":16,"datum":"2026-07-12","mistoId":"kramek"},{"id":129,"workerId":4,"datum":"2026-07-12","mistoId":"slapada"},{"id":130,"workerId":6,"datum":"2026-07-12","mistoId":"obcerstv"},{"id":131,"workerId":5,"datum":"2026-07-12","mistoId":"zmrzlina"},{"id":132,"workerId":7,"datum":"2026-07-13","mistoId":"vycep"},{"id":133,"workerId":2,"datum":"2026-07-13","mistoId":"kuchynA"},{"id":134,"workerId":17,"datum":"2026-07-13","mistoId":"kuchynB"},{"id":135,"workerId":3,"datum":"2026-07-13","mistoId":"recepce"},{"id":136,"workerId":15,"datum":"2026-07-13","mistoId":"kramek"},{"id":137,"workerId":4,"datum":"2026-07-13","mistoId":"slapada"},{"id":138,"workerId":11,"datum":"2026-07-13","mistoId":"obcerstv"},{"id":139,"workerId":5,"datum":"2026-07-13","mistoId":"zmrzlina"},{"id":140,"workerId":7,"datum":"2026-07-14","mistoId":"vycep"},{"id":141,"workerId":2,"datum":"2026-07-14","mistoId":"kuchynA"},{"id":142,"workerId":17,"datum":"2026-07-14","mistoId":"kuchynB"},{"id":143,"workerId":3,"datum":"2026-07-14","mistoId":"recepce"},{"id":144,"workerId":15,"datum":"2026-07-14","mistoId":"kramek"},{"id":145,"workerId":4,"datum":"2026-07-14","mistoId":"slapada"},{"id":146,"workerId":11,"datum":"2026-07-14","mistoId":"obcerstv"},{"id":147,"workerId":5,"datum":"2026-07-14","mistoId":"zmrzlina"},{"id":148,"workerId":7,"datum":"2026-07-15","mistoId":"vycep"},{"id":149,"workerId":2,"datum":"2026-07-15","mistoId":"kuchynA"},{"id":150,"workerId":17,"datum":"2026-07-15","mistoId":"kuchynB"},{"id":151,"workerId":3,"datum":"2026-07-15","mistoId":"recepce"},{"id":152,"workerId":15,"datum":"2026-07-15","mistoId":"kramek"},{"id":153,"workerId":4,"datum":"2026-07-15","mistoId":"slapada"},{"id":154,"workerId":11,"datum":"2026-07-15","mistoId":"obcerstv"},{"id":155,"workerId":5,"datum":"2026-07-15","mistoId":"zmrzlina"},{"id":156,"workerId":7,"datum":"2026-07-16","mistoId":"vycep"},{"id":157,"workerId":2,"datum":"2026-07-16","mistoId":"kuchynA"},{"id":158,"workerId":17,"datum":"2026-07-16","mistoId":"kuchynB"},{"id":159,"workerId":3,"datum":"2026-07-16","mistoId":"recepce"},{"id":160,"workerId":15,"datum":"2026-07-16","mistoId":"kramek"},{"id":161,"workerId":4,"datum":"2026-07-16","mistoId":"slapada"},{"id":162,"workerId":11,"datum":"2026-07-16","mistoId":"obcerstv"},{"id":163,"workerId":5,"datum":"2026-07-16","mistoId":"zmrzlina"},{"id":164,"workerId":7,"datum":"2026-07-17","mistoId":"vycep"},{"id":165,"workerId":2,"datum":"2026-07-17","mistoId":"kuchynA"},{"id":166,"workerId":9,"datum":"2026-07-17","mistoId":"kuchynB"},{"id":167,"workerId":3,"datum":"2026-07-17","mistoId":"recepce"},{"id":168,"workerId":15,"datum":"2026-07-17","mistoId":"kramek"},{"id":169,"workerId":4,"datum":"2026-07-17","mistoId":"slapada"},{"id":170,"workerId":11,"datum":"2026-07-17","mistoId":"obcerstv"},{"id":171,"workerId":5,"datum":"2026-07-17","mistoId":"zmrzlina"},{"id":172,"workerId":7,"datum":"2026-07-18","mistoId":"vycep"},{"id":173,"workerId":2,"datum":"2026-07-18","mistoId":"kuchynA"},{"id":174,"workerId":9,"datum":"2026-07-18","mistoId":"kuchynB"},{"id":175,"workerId":3,"datum":"2026-07-18","mistoId":"recepce"},{"id":176,"workerId":15,"datum":"2026-07-18","mistoId":"kramek"},{"id":177,"workerId":4,"datum":"2026-07-18","mistoId":"slapada"},{"id":178,"workerId":11,"datum":"2026-07-18","mistoId":"obcerstv"},{"id":179,"workerId":5,"datum":"2026-07-18","mistoId":"zmrzlina"},{"id":180,"workerId":7,"datum":"2026-07-19","mistoId":"vycep"},{"id":181,"workerId":2,"datum":"2026-07-19","mistoId":"kuchynA"},{"id":182,"workerId":9,"datum":"2026-07-19","mistoId":"kuchynB"},{"id":183,"workerId":3,"datum":"2026-07-19","mistoId":"recepce"},{"id":184,"workerId":15,"datum":"2026-07-19","mistoId":"kramek"},{"id":185,"workerId":4,"datum":"2026-07-19","mistoId":"slapada"},{"id":186,"workerId":11,"datum":"2026-07-19","mistoId":"obcerstv"},{"id":187,"workerId":5,"datum":"2026-07-19","mistoId":"zmrzlina"},{"id":188,"workerId":9,"datum":"2026-07-20","mistoId":"vycep"},{"id":189,"workerId":2,"datum":"2026-07-20","mistoId":"kuchynA"},{"id":190,"workerId":17,"datum":"2026-07-20","mistoId":"kuchynB"},{"id":191,"workerId":3,"datum":"2026-07-20","mistoId":"recepce"},{"id":193,"workerId":4,"datum":"2026-07-20","mistoId":"slapada"},{"id":194,"workerId":6,"datum":"2026-07-20","mistoId":"obcerstv"},{"id":195,"workerId":8,"datum":"2026-07-20","mistoId":"zmrzlina"},{"id":196,"workerId":9,"datum":"2026-07-21","mistoId":"vycep"},{"id":197,"workerId":2,"datum":"2026-07-21","mistoId":"kuchynA"},{"id":198,"workerId":17,"datum":"2026-07-21","mistoId":"kuchynB"},{"id":199,"workerId":3,"datum":"2026-07-21","mistoId":"recepce"},{"id":201,"workerId":12,"datum":"2026-07-21","mistoId":"slapada"},{"id":202,"workerId":6,"datum":"2026-07-21","mistoId":"obcerstv"},{"id":203,"workerId":8,"datum":"2026-07-21","mistoId":"zmrzlina"},{"id":204,"workerId":9,"datum":"2026-07-22","mistoId":"vycep"},{"id":205,"workerId":2,"datum":"2026-07-22","mistoId":"kuchynA"},{"id":206,"workerId":17,"datum":"2026-07-22","mistoId":"kuchynB"},{"id":207,"workerId":3,"datum":"2026-07-22","mistoId":"recepce"},{"id":209,"workerId":12,"datum":"2026-07-22","mistoId":"slapada"},{"id":210,"workerId":6,"datum":"2026-07-22","mistoId":"obcerstv"},{"id":211,"workerId":8,"datum":"2026-07-22","mistoId":"zmrzlina"},{"id":212,"workerId":9,"datum":"2026-07-23","mistoId":"vycep"},{"id":213,"workerId":2,"datum":"2026-07-23","mistoId":"kuchynA"},{"id":214,"workerId":17,"datum":"2026-07-23","mistoId":"kuchynB"},{"id":215,"workerId":3,"datum":"2026-07-23","mistoId":"recepce"},{"id":216,"workerId":12,"datum":"2026-07-23","mistoId":"kramek"},{"id":217,"workerId":4,"datum":"2026-07-23","mistoId":"slapada"},{"id":218,"workerId":6,"datum":"2026-07-23","mistoId":"obcerstv"},{"id":219,"workerId":8,"datum":"2026-07-23","mistoId":"zmrzlina"},{"id":220,"workerId":9,"datum":"2026-07-24","mistoId":"vycep"},{"id":221,"workerId":2,"datum":"2026-07-24","mistoId":"kuchynA"},{"id":222,"workerId":17,"datum":"2026-07-24","mistoId":"kuchynB"},{"id":223,"workerId":3,"datum":"2026-07-24","mistoId":"recepce"},{"id":224,"workerId":12,"datum":"2026-07-24","mistoId":"kramek"},{"id":225,"workerId":4,"datum":"2026-07-24","mistoId":"slapada"},{"id":226,"workerId":6,"datum":"2026-07-24","mistoId":"obcerstv"},{"id":227,"workerId":8,"datum":"2026-07-24","mistoId":"zmrzlina"},{"id":228,"workerId":9,"datum":"2026-07-25","mistoId":"vycep"},{"id":229,"workerId":2,"datum":"2026-07-25","mistoId":"kuchynA"},{"id":230,"workerId":17,"datum":"2026-07-25","mistoId":"kuchynB"},{"id":231,"workerId":3,"datum":"2026-07-25","mistoId":"recepce"},{"id":232,"workerId":12,"datum":"2026-07-25","mistoId":"kramek"},{"id":233,"workerId":4,"datum":"2026-07-25","mistoId":"slapada"},{"id":234,"workerId":6,"datum":"2026-07-25","mistoId":"obcerstv"},{"id":235,"workerId":8,"datum":"2026-07-25","mistoId":"zmrzlina"},{"id":236,"workerId":9,"datum":"2026-07-26","mistoId":"vycep"},{"id":237,"workerId":2,"datum":"2026-07-26","mistoId":"kuchynA"},{"id":238,"workerId":17,"datum":"2026-07-26","mistoId":"kuchynB"},{"id":239,"workerId":3,"datum":"2026-07-26","mistoId":"recepce"},{"id":240,"workerId":12,"datum":"2026-07-26","mistoId":"kramek"},{"id":241,"workerId":4,"datum":"2026-07-26","mistoId":"slapada"},{"id":242,"workerId":6,"datum":"2026-07-26","mistoId":"obcerstv"},{"id":243,"workerId":8,"datum":"2026-07-26","mistoId":"zmrzlina"},{"id":244,"workerId":7,"datum":"2026-07-27","mistoId":"vycep"},{"id":245,"workerId":2,"datum":"2026-07-27","mistoId":"kuchynA"},{"id":246,"workerId":13,"datum":"2026-07-27","mistoId":"kuchynB"},{"id":247,"workerId":3,"datum":"2026-07-27","mistoId":"recepce"},{"id":248,"workerId":10,"datum":"2026-07-27","mistoId":"kramek"},{"id":249,"workerId":12,"datum":"2026-07-27","mistoId":"slapada"},{"id":250,"workerId":11,"datum":"2026-07-27","mistoId":"obcerstv"},{"id":251,"workerId":8,"datum":"2026-07-27","mistoId":"zmrzlina"},{"id":252,"workerId":7,"datum":"2026-07-28","mistoId":"vycep"},{"id":253,"workerId":2,"datum":"2026-07-28","mistoId":"kuchynA"},{"id":254,"workerId":13,"datum":"2026-07-28","mistoId":"kuchynB"},{"id":255,"workerId":3,"datum":"2026-07-28","mistoId":"recepce"},{"id":256,"workerId":10,"datum":"2026-07-28","mistoId":"kramek"},{"id":257,"workerId":12,"datum":"2026-07-28","mistoId":"slapada"},{"id":258,"workerId":11,"datum":"2026-07-28","mistoId":"obcerstv"},{"id":259,"workerId":8,"datum":"2026-07-28","mistoId":"zmrzlina"},{"id":260,"workerId":7,"datum":"2026-07-29","mistoId":"vycep"},{"id":261,"workerId":2,"datum":"2026-07-29","mistoId":"kuchynA"},{"id":262,"workerId":13,"datum":"2026-07-29","mistoId":"kuchynB"},{"id":263,"workerId":3,"datum":"2026-07-29","mistoId":"recepce"},{"id":264,"workerId":10,"datum":"2026-07-29","mistoId":"kramek"},{"id":265,"workerId":12,"datum":"2026-07-29","mistoId":"slapada"},{"id":266,"workerId":11,"datum":"2026-07-29","mistoId":"obcerstv"},{"id":267,"workerId":8,"datum":"2026-07-29","mistoId":"zmrzlina"},{"id":268,"workerId":7,"datum":"2026-07-30","mistoId":"vycep"},{"id":269,"workerId":2,"datum":"2026-07-30","mistoId":"kuchynA"},{"id":270,"workerId":13,"datum":"2026-07-30","mistoId":"kuchynB"},{"id":271,"workerId":3,"datum":"2026-07-30","mistoId":"recepce"},{"id":272,"workerId":10,"datum":"2026-07-30","mistoId":"kramek"},{"id":273,"workerId":12,"datum":"2026-07-30","mistoId":"slapada"},{"id":274,"workerId":11,"datum":"2026-07-30","mistoId":"obcerstv"},{"id":275,"workerId":8,"datum":"2026-07-30","mistoId":"zmrzlina"},{"id":276,"workerId":7,"datum":"2026-07-31","mistoId":"vycep"},{"id":277,"workerId":2,"datum":"2026-07-31","mistoId":"kuchynA"},{"id":278,"workerId":13,"datum":"2026-07-31","mistoId":"kuchynB"},{"id":279,"workerId":3,"datum":"2026-07-31","mistoId":"recepce"},{"id":280,"workerId":10,"datum":"2026-07-31","mistoId":"kramek"},{"id":281,"workerId":12,"datum":"2026-07-31","mistoId":"slapada"},{"id":282,"workerId":11,"datum":"2026-07-31","mistoId":"obcerstv"},{"id":283,"workerId":8,"datum":"2026-07-31","mistoId":"zmrzlina"},{"id":284,"workerId":7,"datum":"2026-08-01","mistoId":"vycep"},{"id":285,"workerId":2,"datum":"2026-08-01","mistoId":"kuchynA"},{"id":286,"workerId":13,"datum":"2026-08-01","mistoId":"kuchynB"},{"id":287,"workerId":3,"datum":"2026-08-01","mistoId":"recepce"},{"id":288,"workerId":10,"datum":"2026-08-01","mistoId":"kramek"},{"id":289,"workerId":12,"datum":"2026-08-01","mistoId":"slapada"},{"id":290,"workerId":6,"datum":"2026-08-01","mistoId":"obcerstv"},{"id":291,"workerId":8,"datum":"2026-08-01","mistoId":"zmrzlina"},{"id":292,"workerId":7,"datum":"2026-08-02","mistoId":"vycep"},{"id":293,"workerId":2,"datum":"2026-08-02","mistoId":"kuchynA"},{"id":294,"workerId":13,"datum":"2026-08-02","mistoId":"kuchynB"},{"id":295,"workerId":3,"datum":"2026-08-02","mistoId":"recepce"},{"id":296,"workerId":19,"datum":"2026-08-02","mistoId":"kramek"},{"id":297,"workerId":12,"datum":"2026-08-02","mistoId":"slapada"},{"id":298,"workerId":6,"datum":"2026-08-02","mistoId":"obcerstv"},{"id":299,"workerId":8,"datum":"2026-08-02","mistoId":"zmrzlina"},{"id":300,"workerId":9,"datum":"2026-08-03","mistoId":"vycep"},{"id":301,"workerId":2,"datum":"2026-08-03","mistoId":"kuchynA"},{"id":302,"workerId":14,"datum":"2026-08-03","mistoId":"kuchynB"},{"id":303,"workerId":3,"datum":"2026-08-03","mistoId":"recepce"},{"id":304,"workerId":19,"datum":"2026-08-03","mistoId":"kramek"},{"id":305,"workerId":12,"datum":"2026-08-03","mistoId":"slapada"},{"id":306,"workerId":6,"datum":"2026-08-03","mistoId":"obcerstv"},{"id":307,"workerId":8,"datum":"2026-08-03","mistoId":"zmrzlina"},{"id":308,"workerId":9,"datum":"2026-08-04","mistoId":"vycep"},{"id":309,"workerId":2,"datum":"2026-08-04","mistoId":"kuchynA"},{"id":310,"workerId":14,"datum":"2026-08-04","mistoId":"kuchynB"},{"id":311,"workerId":3,"datum":"2026-08-04","mistoId":"recepce"},{"id":312,"workerId":19,"datum":"2026-08-04","mistoId":"kramek"},{"id":313,"workerId":12,"datum":"2026-08-04","mistoId":"slapada"},{"id":314,"workerId":6,"datum":"2026-08-04","mistoId":"obcerstv"},{"id":315,"workerId":8,"datum":"2026-08-04","mistoId":"zmrzlina"},{"id":316,"workerId":9,"datum":"2026-08-05","mistoId":"vycep"},{"id":317,"workerId":2,"datum":"2026-08-05","mistoId":"kuchynA"},{"id":318,"workerId":14,"datum":"2026-08-05","mistoId":"kuchynB"},{"id":319,"workerId":3,"datum":"2026-08-05","mistoId":"recepce"},{"id":320,"workerId":19,"datum":"2026-08-05","mistoId":"kramek"},{"id":321,"workerId":12,"datum":"2026-08-05","mistoId":"slapada"},{"id":322,"workerId":6,"datum":"2026-08-05","mistoId":"obcerstv"},{"id":323,"workerId":8,"datum":"2026-08-05","mistoId":"zmrzlina"},{"id":324,"workerId":9,"datum":"2026-08-06","mistoId":"vycep"},{"id":325,"workerId":2,"datum":"2026-08-06","mistoId":"kuchynA"},{"id":326,"workerId":14,"datum":"2026-08-06","mistoId":"kuchynB"},{"id":327,"workerId":3,"datum":"2026-08-06","mistoId":"recepce"},{"id":328,"workerId":19,"datum":"2026-08-06","mistoId":"kramek"},{"id":329,"workerId":12,"datum":"2026-08-06","mistoId":"slapada"},{"id":330,"workerId":6,"datum":"2026-08-06","mistoId":"obcerstv"},{"id":331,"workerId":8,"datum":"2026-08-06","mistoId":"zmrzlina"},{"id":332,"workerId":9,"datum":"2026-08-07","mistoId":"vycep"},{"id":333,"workerId":2,"datum":"2026-08-07","mistoId":"kuchynA"},{"id":334,"workerId":14,"datum":"2026-08-07","mistoId":"kuchynB"},{"id":335,"workerId":3,"datum":"2026-08-07","mistoId":"recepce"},{"id":336,"workerId":19,"datum":"2026-08-07","mistoId":"kramek"},{"id":337,"workerId":12,"datum":"2026-08-07","mistoId":"slapada"},{"id":338,"workerId":6,"datum":"2026-08-07","mistoId":"obcerstv"},{"id":339,"workerId":8,"datum":"2026-08-07","mistoId":"zmrzlina"},{"id":340,"workerId":9,"datum":"2026-08-08","mistoId":"vycep"},{"id":341,"workerId":2,"datum":"2026-08-08","mistoId":"kuchynA"},{"id":342,"workerId":14,"datum":"2026-08-08","mistoId":"kuchynB"},{"id":343,"workerId":3,"datum":"2026-08-08","mistoId":"recepce"},{"id":344,"workerId":19,"datum":"2026-08-08","mistoId":"kramek"},{"id":345,"workerId":12,"datum":"2026-08-08","mistoId":"slapada"},{"id":346,"workerId":6,"datum":"2026-08-08","mistoId":"obcerstv"},{"id":347,"workerId":8,"datum":"2026-08-08","mistoId":"zmrzlina"},{"id":348,"workerId":9,"datum":"2026-08-09","mistoId":"vycep"},{"id":349,"workerId":2,"datum":"2026-08-09","mistoId":"kuchynA"},{"id":350,"workerId":14,"datum":"2026-08-09","mistoId":"kuchynB"},{"id":351,"workerId":3,"datum":"2026-08-09","mistoId":"recepce"},{"id":352,"workerId":19,"datum":"2026-08-09","mistoId":"kramek"},{"id":353,"workerId":12,"datum":"2026-08-09","mistoId":"slapada"},{"id":354,"workerId":6,"datum":"2026-08-09","mistoId":"obcerstv"},{"id":355,"workerId":8,"datum":"2026-08-09","mistoId":"zmrzlina"},{"id":356,"workerId":7,"datum":"2026-08-10","mistoId":"vycep"},{"id":357,"workerId":2,"datum":"2026-08-10","mistoId":"kuchynA"},{"id":358,"workerId":16,"datum":"2026-08-10","mistoId":"kuchynB"},{"id":359,"workerId":3,"datum":"2026-08-10","mistoId":"recepce"},{"id":360,"workerId":10,"datum":"2026-08-10","mistoId":"kramek"},{"id":361,"workerId":4,"datum":"2026-08-10","mistoId":"slapada"},{"id":362,"workerId":11,"datum":"2026-08-10","mistoId":"obcerstv"},{"id":363,"workerId":8,"datum":"2026-08-10","mistoId":"zmrzlina"},{"id":364,"workerId":7,"datum":"2026-08-11","mistoId":"vycep"},{"id":365,"workerId":2,"datum":"2026-08-11","mistoId":"kuchynA"},{"id":366,"workerId":16,"datum":"2026-08-11","mistoId":"kuchynB"},{"id":367,"workerId":3,"datum":"2026-08-11","mistoId":"recepce"},{"id":368,"workerId":10,"datum":"2026-08-11","mistoId":"kramek"},{"id":369,"workerId":4,"datum":"2026-08-11","mistoId":"slapada"},{"id":370,"workerId":11,"datum":"2026-08-11","mistoId":"obcerstv"},{"id":371,"workerId":8,"datum":"2026-08-11","mistoId":"zmrzlina"},{"id":372,"workerId":7,"datum":"2026-08-12","mistoId":"vycep"},{"id":373,"workerId":2,"datum":"2026-08-12","mistoId":"kuchynA"},{"id":374,"workerId":16,"datum":"2026-08-12","mistoId":"kuchynB"},{"id":375,"workerId":3,"datum":"2026-08-12","mistoId":"recepce"},{"id":376,"workerId":19,"datum":"2026-08-12","mistoId":"kramek"},{"id":377,"workerId":4,"datum":"2026-08-12","mistoId":"slapada"},{"id":378,"workerId":11,"datum":"2026-08-12","mistoId":"obcerstv"},{"id":379,"workerId":8,"datum":"2026-08-12","mistoId":"zmrzlina"},{"id":380,"workerId":2,"datum":"2026-08-13","mistoId":"kuchynA"},{"id":381,"workerId":16,"datum":"2026-08-13","mistoId":"kuchynB"},{"id":382,"workerId":3,"datum":"2026-08-13","mistoId":"recepce"},{"id":383,"workerId":19,"datum":"2026-08-13","mistoId":"kramek"},{"id":384,"workerId":4,"datum":"2026-08-13","mistoId":"slapada"},{"id":385,"workerId":11,"datum":"2026-08-13","mistoId":"obcerstv"},{"id":386,"workerId":8,"datum":"2026-08-13","mistoId":"zmrzlina"},{"id":387,"workerId":2,"datum":"2026-08-14","mistoId":"kuchynA"},{"id":388,"workerId":16,"datum":"2026-08-14","mistoId":"kuchynB"},{"id":389,"workerId":3,"datum":"2026-08-14","mistoId":"recepce"},{"id":390,"workerId":19,"datum":"2026-08-14","mistoId":"kramek"},{"id":391,"workerId":4,"datum":"2026-08-14","mistoId":"slapada"},{"id":392,"workerId":11,"datum":"2026-08-14","mistoId":"obcerstv"},{"id":393,"workerId":8,"datum":"2026-08-14","mistoId":"zmrzlina"},{"id":394,"workerId":2,"datum":"2026-08-15","mistoId":"kuchynA"},{"id":395,"workerId":16,"datum":"2026-08-15","mistoId":"kuchynB"},{"id":396,"workerId":3,"datum":"2026-08-15","mistoId":"recepce"},{"id":397,"workerId":19,"datum":"2026-08-15","mistoId":"kramek"},{"id":398,"workerId":4,"datum":"2026-08-15","mistoId":"slapada"},{"id":399,"workerId":11,"datum":"2026-08-15","mistoId":"obcerstv"},{"id":400,"workerId":8,"datum":"2026-08-15","mistoId":"zmrzlina"},{"id":401,"workerId":2,"datum":"2026-08-16","mistoId":"kuchynA"},{"id":402,"workerId":16,"datum":"2026-08-16","mistoId":"kuchynB"},{"id":403,"workerId":3,"datum":"2026-08-16","mistoId":"recepce"},{"id":404,"workerId":19,"datum":"2026-08-16","mistoId":"kramek"},{"id":405,"workerId":4,"datum":"2026-08-16","mistoId":"slapada"},{"id":406,"workerId":11,"datum":"2026-08-16","mistoId":"obcerstv"},{"id":407,"workerId":8,"datum":"2026-08-16","mistoId":"zmrzlina"},{"id":408,"workerId":9,"datum":"2026-08-17","mistoId":"vycep"},{"id":409,"workerId":2,"datum":"2026-08-17","mistoId":"kuchynA"},{"id":410,"workerId":16,"datum":"2026-08-17","mistoId":"kuchynB"},{"id":411,"workerId":3,"datum":"2026-08-17","mistoId":"recepce"},{"id":412,"workerId":19,"datum":"2026-08-17","mistoId":"kramek"},{"id":413,"workerId":4,"datum":"2026-08-17","mistoId":"slapada"},{"id":414,"workerId":6,"datum":"2026-08-17","mistoId":"obcerstv"},{"id":415,"workerId":8,"datum":"2026-08-17","mistoId":"zmrzlina"},{"id":416,"workerId":9,"datum":"2026-08-18","mistoId":"vycep"},{"id":417,"workerId":2,"datum":"2026-08-18","mistoId":"kuchynA"},{"id":418,"workerId":16,"datum":"2026-08-18","mistoId":"kuchynB"},{"id":419,"workerId":3,"datum":"2026-08-18","mistoId":"recepce"},{"id":420,"workerId":10,"datum":"2026-08-18","mistoId":"kramek"},{"id":421,"workerId":4,"datum":"2026-08-18","mistoId":"slapada"},{"id":422,"workerId":6,"datum":"2026-08-18","mistoId":"obcerstv"},{"id":423,"workerId":8,"datum":"2026-08-18","mistoId":"zmrzlina"},{"id":424,"workerId":9,"datum":"2026-08-19","mistoId":"vycep"},{"id":425,"workerId":2,"datum":"2026-08-19","mistoId":"kuchynA"},{"id":426,"workerId":16,"datum":"2026-08-19","mistoId":"kuchynB"},{"id":427,"workerId":3,"datum":"2026-08-19","mistoId":"recepce"},{"id":428,"workerId":10,"datum":"2026-08-19","mistoId":"kramek"},{"id":429,"workerId":4,"datum":"2026-08-19","mistoId":"slapada"},{"id":430,"workerId":6,"datum":"2026-08-19","mistoId":"obcerstv"},{"id":431,"workerId":8,"datum":"2026-08-19","mistoId":"zmrzlina"},{"id":432,"workerId":9,"datum":"2026-08-20","mistoId":"vycep"},{"id":433,"workerId":2,"datum":"2026-08-20","mistoId":"kuchynA"},{"id":434,"workerId":16,"datum":"2026-08-20","mistoId":"kuchynB"},{"id":435,"workerId":3,"datum":"2026-08-20","mistoId":"recepce"},{"id":436,"workerId":19,"datum":"2026-08-20","mistoId":"kramek"},{"id":437,"workerId":4,"datum":"2026-08-20","mistoId":"slapada"},{"id":438,"workerId":6,"datum":"2026-08-20","mistoId":"obcerstv"},{"id":439,"workerId":8,"datum":"2026-08-20","mistoId":"zmrzlina"},{"id":440,"workerId":9,"datum":"2026-08-21","mistoId":"vycep"},{"id":441,"workerId":2,"datum":"2026-08-21","mistoId":"kuchynA"},{"id":442,"workerId":16,"datum":"2026-08-21","mistoId":"kuchynB"},{"id":443,"workerId":3,"datum":"2026-08-21","mistoId":"recepce"},{"id":444,"workerId":19,"datum":"2026-08-21","mistoId":"kramek"},{"id":445,"workerId":4,"datum":"2026-08-21","mistoId":"slapada"},{"id":446,"workerId":6,"datum":"2026-08-21","mistoId":"obcerstv"},{"id":447,"workerId":8,"datum":"2026-08-21","mistoId":"zmrzlina"},{"id":448,"workerId":9,"datum":"2026-08-22","mistoId":"vycep"},{"id":449,"workerId":2,"datum":"2026-08-22","mistoId":"kuchynA"},{"id":450,"workerId":16,"datum":"2026-08-22","mistoId":"kuchynB"},{"id":451,"workerId":3,"datum":"2026-08-22","mistoId":"recepce"},{"id":452,"workerId":19,"datum":"2026-08-22","mistoId":"kramek"},{"id":453,"workerId":4,"datum":"2026-08-22","mistoId":"slapada"},{"id":454,"workerId":6,"datum":"2026-08-22","mistoId":"obcerstv"},{"id":455,"workerId":8,"datum":"2026-08-22","mistoId":"zmrzlina"},{"id":456,"workerId":9,"datum":"2026-08-23","mistoId":"vycep"},{"id":457,"workerId":2,"datum":"2026-08-23","mistoId":"kuchynA"},{"id":458,"workerId":16,"datum":"2026-08-23","mistoId":"kuchynB"},{"id":459,"workerId":3,"datum":"2026-08-23","mistoId":"recepce"},{"id":460,"workerId":19,"datum":"2026-08-23","mistoId":"kramek"},{"id":461,"workerId":4,"datum":"2026-08-23","mistoId":"slapada"},{"id":462,"workerId":6,"datum":"2026-08-23","mistoId":"obcerstv"},{"id":463,"workerId":8,"datum":"2026-08-23","mistoId":"zmrzlina"},{"id":464,"workerId":2,"datum":"2026-08-24","mistoId":"kuchynA"},{"id":465,"workerId":16,"datum":"2026-08-24","mistoId":"kuchynB"},{"id":466,"workerId":3,"datum":"2026-08-24","mistoId":"recepce"},{"id":467,"workerId":19,"datum":"2026-08-24","mistoId":"kramek"},{"id":468,"workerId":4,"datum":"2026-08-24","mistoId":"slapada"},{"id":469,"workerId":11,"datum":"2026-08-24","mistoId":"obcerstv"},{"id":470,"workerId":8,"datum":"2026-08-24","mistoId":"zmrzlina"},{"id":471,"workerId":2,"datum":"2026-08-25","mistoId":"kuchynA"},{"id":472,"workerId":16,"datum":"2026-08-25","mistoId":"kuchynB"},{"id":473,"workerId":3,"datum":"2026-08-25","mistoId":"recepce"},{"id":474,"workerId":19,"datum":"2026-08-25","mistoId":"kramek"},{"id":475,"workerId":4,"datum":"2026-08-25","mistoId":"slapada"},{"id":476,"workerId":11,"datum":"2026-08-25","mistoId":"obcerstv"},{"id":477,"workerId":8,"datum":"2026-08-25","mistoId":"zmrzlina"},{"id":478,"workerId":2,"datum":"2026-08-26","mistoId":"kuchynA"},{"id":479,"workerId":16,"datum":"2026-08-26","mistoId":"kuchynB"},{"id":480,"workerId":3,"datum":"2026-08-26","mistoId":"recepce"},{"id":481,"workerId":10,"datum":"2026-08-26","mistoId":"kramek"},{"id":482,"workerId":4,"datum":"2026-08-26","mistoId":"slapada"},{"id":483,"workerId":11,"datum":"2026-08-26","mistoId":"obcerstv"},{"id":484,"workerId":8,"datum":"2026-08-26","mistoId":"zmrzlina"},{"id":485,"workerId":7,"datum":"2026-08-27","mistoId":"vycep"},{"id":486,"workerId":2,"datum":"2026-08-27","mistoId":"kuchynA"},{"id":487,"workerId":16,"datum":"2026-08-27","mistoId":"kuchynB"},{"id":488,"workerId":3,"datum":"2026-08-27","mistoId":"recepce"},{"id":489,"workerId":10,"datum":"2026-08-27","mistoId":"kramek"},{"id":490,"workerId":4,"datum":"2026-08-27","mistoId":"slapada"},{"id":491,"workerId":11,"datum":"2026-08-27","mistoId":"obcerstv"},{"id":492,"workerId":8,"datum":"2026-08-27","mistoId":"zmrzlina"},{"id":493,"workerId":7,"datum":"2026-08-28","mistoId":"vycep"},{"id":494,"workerId":2,"datum":"2026-08-28","mistoId":"kuchynA"},{"id":495,"workerId":16,"datum":"2026-08-28","mistoId":"kuchynB"},{"id":496,"workerId":3,"datum":"2026-08-28","mistoId":"recepce"},{"id":497,"workerId":19,"datum":"2026-08-28","mistoId":"kramek"},{"id":498,"workerId":4,"datum":"2026-08-28","mistoId":"slapada"},{"id":499,"workerId":11,"datum":"2026-08-28","mistoId":"obcerstv"},{"id":500,"workerId":8,"datum":"2026-08-28","mistoId":"zmrzlina"},{"id":501,"workerId":7,"datum":"2026-08-29","mistoId":"vycep"},{"id":502,"workerId":2,"datum":"2026-08-29","mistoId":"kuchynA"},{"id":503,"workerId":16,"datum":"2026-08-29","mistoId":"kuchynB"},{"id":504,"workerId":3,"datum":"2026-08-29","mistoId":"recepce"},{"id":505,"workerId":19,"datum":"2026-08-29","mistoId":"kramek"},{"id":506,"workerId":4,"datum":"2026-08-29","mistoId":"slapada"},{"id":507,"workerId":11,"datum":"2026-08-29","mistoId":"obcerstv"},{"id":508,"workerId":8,"datum":"2026-08-29","mistoId":"zmrzlina"},{"id":509,"workerId":7,"datum":"2026-08-30","mistoId":"vycep"},{"id":510,"workerId":2,"datum":"2026-08-30","mistoId":"kuchynA"},{"id":511,"workerId":16,"datum":"2026-08-30","mistoId":"kuchynB"},{"id":512,"workerId":3,"datum":"2026-08-30","mistoId":"recepce"},{"id":513,"workerId":19,"datum":"2026-08-30","mistoId":"kramek"},{"id":514,"workerId":4,"datum":"2026-08-30","mistoId":"slapada"},{"id":515,"workerId":11,"datum":"2026-08-30","mistoId":"obcerstv"},{"id":516,"workerId":8,"datum":"2026-08-30","mistoId":"zmrzlina"}];
+
+// Runtime data
+var LOAD_OK = { schedule:false, ucty:false, uklid_log:false, penalizace:false, pracovni_dny:false, workers:false, trzby:false, naklady:false, businesses:false, venues:false, admin_venues:false, stanoviste:false, worker_venues:false, worker_dostupnost:false, byty:false, byty_platby:false, pokladna:false, naklady_opakovane:false, pokladna_uzaverky:false, zalohy:false };
+var SCHEDULE = [];
+var UCTY_POLOZKY = [];
+var UKLID_LOG = [];
+var PENALIZACE = [];
+var PRACOVNI_DNY = []; // {id, workerId, datum, prichod, odchod, obed, vecere}
+var NAKLADY = []; // {id, venue_id, workerId, datum, popis, castka} - Makro, pivo, zásoby...
+var ZALOHY = []; // {id, venue_id, workerId, datum, castka, poznamka, admin_id, smazano} - záloha na mzdu, vyplacená předem
+
+// ===================== BYTY / POKLADNA / OPAKOVANÉ NÁKLADY =====================
+var BYTY = [];             // {id, venue_id, nazev, najemnik, mesicni_castka, poznamka, aktivni}
+var BYTY_PLATBY = [];      // {id, byt_id, mesic:'YYYY-MM', datum, castka, poznamka}
+var POKLADNA = [];         // {id, venue_id, datum, typ:'prijem'|'vydaj', castka, popis, worker_id}
+var NAKLADY_OPAKOVANE = [];// {id, venue_id, popis, castka, den_v_mesici, aktivni}
+var POKLADNA_UZAVERKY = [];// {id, venue_id, ucet, rok, mesic, typ:'pocatecni'|'konecny', castka, poznamka, datum, admin_id}
+
+function currentMonthStr() {
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+// ===================== SUPABASE SAVE/LOAD =====================
+
+// Obecná spolehlivá pomůcka pro ukládání - vždy zkontroluje, jestli se zápis opravdu povedl
+async function dbUpsert(table, rows) {
+  if (!rows || !rows.length) return { ok:true };
+  try {
+    var res = await db.from(table).upsert(rows);
+    if (res && res.error) return { ok:false, error:res.error };
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+
+// DŮLEŽITÉ: každá save* funkce ukládá CELÉ pole z paměti (upsert). Pokud se
+// odpovídající tabulka při loadAll() nepovedla načíst, pole v paměti je
+// zastaralé/prázdné - uložit by ho znamenalo přepsat reálná data v databázi
+// starou/prázdnou kopií. Proto se save odmítne a appka musí ukázat chybu
+// (zkus obnovit stránku), místo aby tiše smazala něčí zapsané hodiny.
+function requireLoadOk(key) {
+  if (!LOAD_OK[key]) return { ok:false, error:'Data se nepodařilo bezpečně načíst - obnov prosím stránku (F5) předtím, než budeš znovu ukládat.' };
+  return null;
+}
+
+async function saveSchedule() {
+  var blocked = requireLoadOk('schedule'); if (blocked) return blocked;
+  return await dbUpsert('schedule', SCHEDULE);
+}
+async function saveUcty() {
+  var blocked = requireLoadOk('ucty'); if (blocked) return blocked;
+  return await dbUpsert('ucty', UCTY_POLOZKY);
+}
+async function saveUklidLog() {
+  var blocked = requireLoadOk('uklid_log'); if (blocked) return blocked;
+  return await dbUpsert('uklid_log', UKLID_LOG);
+}
+async function savePenalizace() {
+  var blocked = requireLoadOk('penalizace'); if (blocked) return blocked;
+  return await dbUpsert('penalizace', PENALIZACE);
+}
+async function savePracovniDny() {
+  var blocked = requireLoadOk('pracovni_dny'); if (blocked) return blocked;
+  return await dbUpsert('pracovni_dny', PRACOVNI_DNY);
+}
+// Admin rovnou založí nového brigádníka jménem a PINem (bez registrace přes
+// e-mail) - hodí se hlavně pro provozovny, kde lidi appku moc nepoužívají.
+// ===================== VLOG (Kosatka) =====================
+var VLOG_POSTS = [];
+async function loadVlogPosts() {
+  try {
+    var r = await db.from('vlog_posts').select('*').order('vytvoreno', {ascending:false});
+    if (r.error) throw r.error;
+    VLOG_POSTS = r.data || [];
+    await cleanupOldVlogPosts();
+    return { ok:true };
+  } catch(e) {
+    console.error('Načtení VLOGu selhalo:', e);
+    return { ok:false, error:e };
+  }
+}
+// Příspěvky starší než 14 dní appka potichu smaže (i s fotkou v úložišti),
+// pokaždé když někdo otevře VLOG. Žádný samostatný časovač na pozadí to
+// nepotřebuje - stačí, že appku někdo běžně otevírá.
+async function cleanupOldVlogPosts() {
+  var hranice = new Date(); hranice.setDate(hranice.getDate()-14);
+  var stare = VLOG_POSTS.filter(function(p){ return new Date(p.vytvoreno) < hranice; });
+  for (var i=0; i<stare.length; i++) {
+    await removeVlogPost(stare[i].id);
+  }
+}
+function vlogStoragePathFromUrl(url) {
+  if (!url) return null;
+  var m = url.match(/\/avatars\/(.+)$/);
+  return m ? m[1] : null;
+}
+async function addVlogPost(workerId, text, fotoFile) {
+  var fotoUrl = null;
+  if (fotoFile) {
+    try {
+      var ext = (fotoFile.name.split('.').pop() || 'jpg').toLowerCase();
+      var path = 'vlog-'+workerId+'-'+Date.now()+'.'+ext;
+      var up = await db.storage.from('avatars').upload(path, fotoFile, { upsert:true });
+      if (up.error) return { ok:false, error:up.error };
+      fotoUrl = db.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+    } catch(e) { return { ok:false, error:e }; }
+  }
+  try {
+    var row = { worker_id:workerId, text:text||'', foto_url:fotoUrl };
+    var res = await db.from('vlog_posts').insert([row]).select();
+    if (res.error) return { ok:false, error:res.error };
+    VLOG_POSTS.unshift(res.data[0]);
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+async function removeVlogPost(id) {
+  var post = VLOG_POSTS.find(function(p){ return p.id===id; });
+  if (post && post.foto_url) {
+    var path = vlogStoragePathFromUrl(post.foto_url);
+    if (path) { try { await db.storage.from('avatars').remove([path]); } catch(e) { console.error('Smazání fotky z úložiště selhalo:', e); } }
+  }
+  var res = await db.from('vlog_posts').delete().eq('id', id);
+  if (!res.error) VLOG_POSTS = VLOG_POSTS.filter(function(p){ return p.id!==id; });
+  return res;
+}
+
+// Nahraje profilovku do Supabase Storage (bucket "avatars", musí být předem
+// ručně založený a nastavený jako public - viz migrace 008) a uloží veřejnou
+// URL do workers.foto_url.
+async function uploadProfilovka(workerId, file) {
+  if (!file) return { ok:false, error:'Nevybral/a jsi žádný soubor.' };
+  if (file.size > 5*1024*1024) return { ok:false, error:'Fotka je moc velká (max 5 MB).' };
+  try {
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    var path = 'worker-'+workerId+'-'+Date.now()+'.'+ext;
+    var up = await db.storage.from('avatars').upload(path, file, { upsert:true });
+    if (up.error) return { ok:false, error:up.error };
+    var pub = db.storage.from('avatars').getPublicUrl(path);
+    var url = pub.data.publicUrl;
+    var res = await db.from('workers').update({ foto_url: url }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+    var w = getWorkerById(workerId);
+    if (w) w.foto_url = url;
+    return { ok:true, url:url };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+
+// Smaže zapsané hodiny (příchod/odchod) pro daný den - cílený delete
+// jednoho řádku, bezpečné i při zastaralém poli v paměti.
+async function removePracovniDen(id) {
+  try {
+    var res = await db.from('pracovni_dny').delete().eq('id', id);
+    if (res && res.error) return { ok:false, error:res.error };
+    PRACOVNI_DNY = PRACOVNI_DNY.filter(function(p){ return p.id!==id; });
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+
+// Dostupnost zvlášť pro každou "zaklad" provozovnu (Kosatka dál používá
+// workers.dostupnost beze změny, tohle je jen pro Republiku/Anděl).
+function getDostupnostVenue(workerId, venueId) {
+  var row = WORKER_DOSTUPNOST.find(function(d){ return d.worker_id===workerId && d.venue_id===venueId; });
+  return row ? (row.dny || []) : [];
+}
+// Volná poznámka k dostupnosti ("od kolika do kolika můžeš" apod.)
+function getDostupnostPoznamkaVenue(workerId, venueId) {
+  var row = WORKER_DOSTUPNOST.find(function(d){ return d.worker_id===workerId && d.venue_id===venueId; });
+  return row ? (row.poznamka || '') : '';
+}
+// Volba směny PRO KAŽDÝ DEN zvlášť (jen u Anděl provozoven) - {datum: text presetu}
+function getSmenyVenue(workerId, venueId) {
+  var row = WORKER_DOSTUPNOST.find(function(d){ return d.worker_id===workerId && d.venue_id===venueId; });
+  return row ? (row.smeny || {}) : {};
+}
+// Hodnota u jednoho dne může být buď starší formát (jeden text - brigádník
+// mohl zvolit jen 1 směnu), nebo pole víc textů (nový formát - může zvolit
+// víc směn, když mu nezáleží, kterou dostane, včetně "můžu celý den"). Tahle
+// funkce z obojího udělá jeden čitelný text pro zobrazení adminovi.
+function smenyLabel(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+  return v || '';
+}
+async function saveMyDostupnostVenue(workerId, venueId, dates, poznamka, smeny) {
+  var existing = WORKER_DOSTUPNOST.find(function(d){ return d.worker_id===workerId && d.venue_id===venueId; });
+  try {
+    if (existing) {
+      existing.dny = dates;
+      var upd = { dny: dates };
+      if (poznamka!==undefined) { existing.poznamka = poznamka; upd.poznamka = poznamka; }
+      if (smeny!==undefined) { existing.smeny = smeny; upd.smeny = smeny; }
+      var res = await db.from('worker_dostupnost').update(upd).eq('id', existing.id);
+      if (res.error) return { ok:false, error:res.error };
+    } else {
+      var row = { worker_id:workerId, venue_id:venueId, dny:dates, poznamka:poznamka||null, smeny:smeny||{} };
+      var res2 = await db.from('worker_dostupnost').insert([row]).select();
+      if (res2.error) return { ok:false, error:res2.error };
+      WORKER_DOSTUPNOST.push(res2.data[0]);
+    }
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:'Nepovedlo se uložit (výpadek připojení?). Zkus to prosím znovu.' };
+  }
+}
+// Přednastavené možnosti směn, které appka nabízí brigádníkům v podnicích Anděl -
+// u KAŽDÉHO označeného dne v kalendáři si vyberou, která z nich pro ten den platí.
+// Anděl Café a Anděl Music Club mají úplně jiné směny a časy, proto je sada
+// možností podle SLUGU KONKRÉTNÍ PROVOZOVNY (ne jen podle businessu "andel").
+// Každá možnost má "dny", pro které se má vůbec nabízet (0=neděle, 1=pondělí,
+// ... 6=sobota - stejně jako JS Date.getDay()). getAndelSmenyPresety(venue) v
+// podnik.html podle tohohle pro každý vybraný den v kalendáři vyfiltruje jen
+// možnosti, co pro ten konkrétní den (a tu konkrétní provozovnu) dávají smysl.
+var ANDEL_SMENY_PRESETY_VENUE = {
+  // Anděl Café - a zároveň výchozí sada pro ostatní "obecné" Anděl provozovny
+  // (Dvorek, Bistro, Station), dokud pro ně nikdo nezaloží vlastní sadu níž.
+  'andel-cafe': [
+    { text:'9:00–17:00',              dny:[1,2,3,4,5,6] },
+    { text:'16:00–00:00',             dny:[1,2,3,4] },
+    { text:'16:00–01:00',             dny:[5,6] },
+    { text:'výpomoc jen víkend 19:00–01:00', dny:[5,6] },
+    { text:'brigádníci 17:00–00:00',  dny:[1,2,3,4] },
+    { text:'brigádníci 17:00–01:00',  dny:[5,6] },
+    { text:'hlavní směna 16:00–22:00', dny:[0] },
+    { text:'brigáda 16:00–22:00',      dny:[0] },
+    { text:'11:00–22:00',              dny:[0] }
+  ],
+  // Anděl Music Club - konec směny se neurčuje předem (končí se podle toho,
+  // kolik lidí zrovna je), proto jen čas "od", bez konce. Stejné každý den.
+  'andel-music-club': [
+    { text:'od 17:00',        dny:[0,1,2,3,4,5,6] },
+    { text:'pomoc 1 - 19:00', dny:[0,1,2,3,4,5,6] },
+    { text:'pomoc 2 - 19:00', dny:[0,1,2,3,4,5,6] }
+  ]
+};
+// Speciální volba navíc ke konkrétním směnám u KAŽDÉHO dne (bez ohledu na
+// "dny" filtr) - brigádník tím řekne, že mu nevadí, jakou přesně směnu ten
+// den dostane, klidně celý den.
+var ANDEL_SMENA_CELY_DEN = 'můžu celý den (nezáleží mi, jakou směnu dostanu)';
+function getAndelSmenyPresety(venue) {
+  if (!venue) return [];
+  return ANDEL_SMENY_PRESETY_VENUE[venue.slug] || ANDEL_SMENY_PRESETY_VENUE['andel-cafe'];
+}
+// Totéž, ale rovnou vyfiltrované na možnosti pro konkrétní datum (podle dne v
+// týdnu) - používá admin při ručním přidávání směny, ať vidí stejnou nabídku
+// jako brigádník na svém profilu.
+function getAndelSmenyPresetyProDatum(venue, datum) {
+  if (!datum) return [];
+  var dow = new Date(datum+'T00:00:00').getDay();
+  return getAndelSmenyPresety(venue).filter(function(p){ return p.dny.indexOf(dow)!==-1; });
+}
+function isAndelBusiness(venue) {
+  if (!venue) return false;
+  var b = BUSINESSES.find(function(x){ return x.id===venue.business_id; });
+  return !!(b && b.slug==='andel');
+}
+
+// Admin rovnou založí nového brigádníka jménem a PINem (bez registrace přes
+// e-mail) - hodí se hlavně pro provozovny, kde lidi appku moc nepoužívají.
+async function createWorkerDirect(jmeno, pin, venueId, role) {
+  var blocked = requireLoadOk('workers'); if (blocked) return blocked;
+  jmeno = (jmeno||'').trim();
+  pin = (pin||'').trim();
+  if (!jmeno) return { ok:false, error:'Chybí jméno.' };
+  if (!/^[0-9]{4}$/.test(pin)) return { ok:false, error:'PIN musí mít přesně 4 číslice.' };
+  if (WORKERS.some(function(w){ return w.pin===pin; })) return { ok:false, error:'Tenhle PIN už někdo má, zvol jiný.' };
+  var row = { id:getNextId(WORKERS), jmeno:jmeno, pin:pin, role:role||'user', misto:null, venue_id:venueId||null, dostupnost:[], schvaleno:true, email:null, auth_user_id:null };
+  var res = await dbUpsert('workers', [row]);
+  if (!res.ok) return res;
+  WORKERS.push(row);
+  return { ok:true, worker:row };
+}
+
+async function saveWorkers() {
+  var blocked = requireLoadOk('workers'); if (blocked) return blocked;
+  var rows = WORKERS.map(function(w) {
+    return {
+      id:w.id, jmeno:w.jmeno, pin:w.pin, role:w.role, misto:w.misto, dostupnost:w.dostupnost,
+      email:w.email||null, auth_user_id:w.auth_user_id||null,
+      venue_id:w.venue_id||null, schvaleno:(w.schvaleno===false?false:true)
+    };
+  });
+  return await dbUpsert('workers', rows);
+}
+
+// Self-service uložení VLASTNÍ dostupnosti brigádníka. Záměrně NEpoužívá
+// saveWorkers() (ten by upsertoval celou tabulku ze zastaralé paměti a mohl
+// by tak přepsat i cizí řádky) - místo toho cíleně upraví jen jeden řádek
+// podle id, takže nemůže smazat/přepsat data nikoho jiného.
+async function saveMyDostupnost(workerId, dates) {
+  try {
+    var res = await db.from('workers').update({ dostupnost: dates }).eq('id', workerId);
+    if (res && res.error) return { ok:false, error:res.error };
+    var w = getWorkerById(workerId);
+    if (w) w.dostupnost = dates;
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:'Nepovedlo se uložit (výpadek připojení?). Zkus to prosím znovu.' };
+  }
+}
+
+// Viditelné upozornění nahoře na stránce, když se něco nepodařilo načíst -
+// dřív appka v tomhle případě tiše jela dál se starými/výchozími daty a nikdo
+// si ničeho nevšiml, dokud "nezmizely" hodiny nebo účty.
+function showLoadErrorBannerIfNeeded() {
+  var failed = Object.keys(LOAD_OK).filter(function(k){ return !LOAD_OK[k]; });
+  var existing = document.getElementById('load-error-banner');
+  if (!failed.length) {
+    // Všechno se teď načetlo v pořádku - pokud tu z dřívějška visel varovný
+    // pruh, schováme ho, ať tam nezůstává natrvalo.
+    if (existing) existing.remove();
+    return;
+  }
+  console.error('Nepodařilo se načíst tyto tabulky:', failed.join(', '));
+  if (existing) return;
+  var el = document.createElement('div');
+  el.id = 'load-error-banner';
+  el.title = 'Nenačteno: ' + failed.join(', ');
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fff4e0;color:#7a4300;border-bottom:2px solid #f0b34d;padding:10px 16px;font-size:14px;font-weight:600;text-align:center;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;';
+  el.innerHTML = '<span>Některá data se nenačetla (slabý signál?). Zatím nic neukládej, nejdřív stránku obnov.</span>' +
+    '<button type="button" onclick="location.reload()" style="font:inherit;font-weight:700;padding:6px 14px;border-radius:8px;border:1px solid #7a4300;background:#fff;color:#7a4300;cursor:pointer;">Obnovit</button>';
+  document.body.appendChild(el);
+}
+
+// ===================== HELPERS =====================
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function tomorrowStr() {
+  var d = new Date(); d.setDate(d.getDate()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function yesterdayStr() {
+  var d = new Date(); d.setDate(d.getDate()-1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function getMonthDays(year, month) {
+  var days = [], last = new Date(year, month, 0).getDate();
+  for (var d=1; d<=last; d++) days.push(year+'-'+String(month).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+  return days;
+}
+// Který měsíc ze sezóny (ROZPIS_MESICE) odpovídá dnešnímu datu - pro výchozí výběr
+// v adminu (rozpis, statistiky, tržby...), ať appka po otevření rovnou ukáže "teď",
+// místo aby to bylo natvrdo na jeden konkrétní měsíc.
+function getCurrentSeasonMonth() {
+  var m = new Date().getMonth()+1;
+  var months = ROZPIS_MESICE.map(function(x){return x.m;});
+  return months.indexOf(m)!==-1 ? m : (months.length ? months[0] : m);
+}
+function getSeasonMonths() { return ROZPIS_MESICE.map(function(x){return x.m;}); }
+// month může být číslo (konkrétní měsíc) nebo řetězec 'all' (celá sezóna najednou).
+function getMonthDaysAny(year, month) {
+  if (month === 'all') {
+    var out = [];
+    getSeasonMonths().forEach(function(m){ out = out.concat(getMonthDays(year, m)); });
+    return out;
+  }
+  return getMonthDays(year, month);
+}
+function isWeekend(ds) {
+  var p=ds.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  return d.getDay()===0||d.getDay()===6;
+}
+function isMuzikaDay(ds) {
+  var p=ds.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  return MUZIKA_DNY.indexOf(d.getDay())!==-1;
+}
+function formatDate(ds) {
+  var p=ds.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  return ['Ne','Po','Út','St','Čt','Pá','So'][d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.';
+}
+function formatDateFull(ds) {
+  var p=ds.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  var mn=['ledna','února','března','dubna','května','června','července','srpna','září','října','listopadu','prosince'];
+  return d.getDate()+'. '+mn[d.getMonth()]+' '+d.getFullYear();
+}
+function getWorkerById(id) { for (var i=0;i<WORKERS.length;i++) if(WORKERS[i].id===id) return WORKERS[i]; return null; }
+function getStanoviste(id) { for (var i=0;i<STANOVISTE.length;i++) if(STANOVISTE[i].id===id) return STANOVISTE[i]; return null; }
+function getNextId(arr) { var m=0; for(var i=0;i<arr.length;i++) if(arr[i].id>m) m=arr[i].id; return m+1; }
+
+function getSazba(mistoId, workerId) {
+  // Individuální sazba na brigádníkovi má vždycky přednost před sazbou stanoviště.
+  if (workerId) {
+    var w = getWorkerById(workerId);
+    if (w && w.sazba != null && w.sazba !== '' && !isNaN(w.sazba) && Number(w.sazba) > 0) return Number(w.sazba);
+  }
+  var st = getStanoviste(mistoId);
+  return (st && st.sazba) ? st.sazba : HODINOVA_SAZBA;
+}
+
+// Výpočet hodin z příchodu/odchodu (přes půlnoc ok)
+function calcHodiny(prichod, odchod) {
+  if (!prichod || !odchod) return 0;
+  var ph = parseInt(prichod.split(':')[0]), pm = parseInt(prichod.split(':')[1]);
+  var oh = parseInt(odchod.split(':')[0]), om = parseInt(odchod.split(':')[1]);
+  var mins = (oh*60+om) - (ph*60+pm);
+  if (mins < 0) mins += 24*60; // přes půlnoc
+  return Math.round(mins/60 * 10) / 10;
+}
+// Zaokrouhlení hodin na 1 desetinné místo - používá se všude, kde se sčítá víc
+// už zaokrouhlených hodnot dohromady (binární floating point sčítání jinak umí
+// vyrobit "61.900000000000006h" místo "61.9h").
+function roundH(h) {
+  return Math.round((h + Number.EPSILON) * 10) / 10;
+}
+
+// Najdi záznam pracovního dne
+function getPracovniDen(workerId, datum) {
+  for (var i=0; i<PRACOVNI_DNY.length; i++) {
+    if (PRACOVNI_DNY[i].workerId===workerId && PRACOVNI_DNY[i].datum===datum) return PRACOVNI_DNY[i];
+  }
+  return null;
+}
+
+// Dny kde má brigádník směnu ale nezapsal příchod/odchod (pro upozornění)
+function getMissingDays(workerId) {
+  var today = todayStr();
+  var missing = [];
+  for (var i=0; i<SCHEDULE.length; i++) {
+    var s = SCHEDULE[i];
+    if (s.workerId !== workerId) continue;
+    if (s.datum > today) continue; // jen minulé + dnes
+    var pd = getPracovniDen(workerId, s.datum);
+    if (!pd || !pd.prichod || !pd.odchod) {
+      if (missing.indexOf(s.datum) === -1) missing.push(s.datum);
+    }
+  }
+  return missing.sort();
+}
+
+function getVydelek(workerId) {
+  var hodiny=0, hruby=0, pen=0, ucty=0;
+  var today = todayStr();
+  // Projdi všechny dny kde má směnu
+  var smenyDny = {};
+  for (var i=0; i<SCHEDULE.length; i++) {
+    var s = SCHEDULE[i];
+    if (s.workerId !== workerId) continue;
+    if (s.datum > today) continue;
+    if (!smenyDny[s.datum]) smenyDny[s.datum] = [];
+    smenyDny[s.datum].push(s);
+  }
+  for (var datum in smenyDny) {
+    var pd = getPracovniDen(workerId, datum);
+    if (!pd || !pd.prichod || !pd.odchod) continue;
+    var h = calcHodiny(pd.prichod, pd.odchod);
+    hodiny += h;
+    // Sazba podle stanoviště té směny
+    var s0 = smenyDny[datum][0];
+    hruby += h * getSazba(s0.mistoId, workerId);
+  }
+  for (var i=0; i<PENALIZACE.length; i++) if(PENALIZACE[i].workerId===workerId) pen += PENALIZACE[i].castka;
+  for (var i=0; i<UCTY_POLOZKY.length; i++) { var p=UCTY_POLOZKY[i]; if(p.workerId===workerId&&!p.smazano) ucty+=p.castka; }
+  // Pozn.: tahle definice getVydelek je přepsaná novější verzí níže v souboru
+  // (poslední deklarace funkce se stejným jménem v JS vyhrává) - uctyDluh se
+  // ale i tady počítá jen informativně, ne do "cisty" (účty se od výplaty
+  // neodečítají, viz komentář u druhé definice).
+  return { hodiny:roundH(hodiny), hruby:hruby, penalizaceTotal:pen, uctyDluh:ucty, cisty:hruby-pen };
+}
+
+function getTotalVydelekFull(workerId) {
+  // Včetně budoucích (pro admin přehled) - bere pevné hodiny z raspisu
+  var hodiny=0, hruby=0;
+  var seen = {};
+  for (var i=0; i<SCHEDULE.length; i++) {
+    var s = SCHEDULE[i];
+    if (s.workerId !== workerId) continue;
+    var pd = getPracovniDen(workerId, s.datum);
+    if (pd && pd.prichod && pd.odchod) {
+      if (!seen[s.datum]) {
+        var h = calcHodiny(pd.prichod, pd.odchod);
+        hodiny += h;
+        hruby += h * getSazba(s.mistoId, workerId);
+        seen[s.datum] = true;
+      }
+    }
+  }
+  return { hodiny:roundH(hodiny), hruby:hruby };
+}
+
+
+// ===================== TRŽBY (denní tržba podle oddělení) =====================
+var TRZBA_MISTA = ['kramek','vycep','obcerstv','zmrzlina','restaurace'];
+var TRZBY = [];
+
+async function saveTrzbyAll() {
+  if (!TRZBY.length) return;
+  await db.from('trzby').upsert(TRZBY);
+}
+function getTrzba(mistoId, datum) {
+  return TRZBY.find(function(t){return t.mistoId===mistoId && t.datum===datum;}) || null;
+}
+async function submitTrzba(mistoId, datum, castka, workerId, poznamka) {
+  var existing = getTrzba(mistoId, datum);
+  var kv = (typeof getVenueBySlug==='function') ? getVenueBySlug('kosatka') : null;
+  if (existing) {
+    existing.castka = castka; existing.workerId = workerId; existing.poznamka = poznamka||'';
+    if (kv && !existing.venue_id) existing.venue_id = kv.id;
+    await db.from('trzby').upsert([existing]);
+    return existing;
+  }
+  var row = { id: getNextId(TRZBY), mistoId: mistoId, datum: datum, castka: castka, workerId: workerId||null, poznamka: poznamka||'', venue_id: kv ? kv.id : null };
+  TRZBY.push(row);
+  await db.from('trzby').upsert([row]);
+  return row;
+}
+function getTrzbyForMonth(year, month) {
+  if (month === 'all') return TRZBY.filter(function(t){return t.datum.indexOf(String(year)+'-')===0;});
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  return TRZBY.filter(function(t){return t.datum.indexOf(prefix)===0;});
+}
+
+// ===================== ÚČTY (položky se NIKDY nesmí trvale smazat) =====================
+// Přidání položky na účet - ukládá se hned a jednotlivě (ne celé pole najednou), aby selhání
+// uložení jedné položky nemohlo ovlivnit ostatní, a aby šlo spolehlivě poznat, jestli se zápis povedl.
+// produktId/mnozstvi jsou nepovinné - když je brigádník vybere ze skladu, dá se to přesně dohledat
+// při týdenním porovnání skladu (protože do popisu si lidi často píšou jen "pivo" apod.)
+async function addUcetPolozka(workerId, mistoId, popis, castka, produktId, mnozstvi) {
+  var row = { id:getNextId(UCTY_POLOZKY), workerId:workerId, datum:todayStr(), mistoId:mistoId, popis:popis, castka:castka, smazano:false, produktId:produktId||null, mnozstvi:produktId?(mnozstvi||1):null };
+  try {
+    var res = await db.from('ucty').upsert([row]);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+  UCTY_POLOZKY.push(row); // do lokální paměti přidáme AŽ po potvrzeném uložení do databáze
+  return { ok:true, row:row };
+}
+
+// Kapela hraje a pije na účet PODNIKU (ne na účet žádného konkrétního brigádníka).
+// Zapisuje výčepák/ka - workerId je null, aby se to nikdy nepočítalo do ničího
+// osobního dluhu (getVydelek filtruje jen workerId===currentUser.id).
+// odepsanoBy = kdo (jaký brigádník) to na účet podniku odepsal, pro dohledatelnost.
+async function addKapelaPolozka(odepsanoByWorkerId, mistoId, kapelaNazev, popis, castka, produktId, mnozstvi) {
+  var row = {
+    id:getNextId(UCTY_POLOZKY), workerId:null, datum:todayStr(), mistoId:mistoId,
+    popis:popis, castka:castka, smazano:false, produktId:produktId||null, mnozstvi:produktId?(mnozstvi||1):null,
+    typ:'kapela', kapela_nazev:kapelaNazev||'Kapela', hrazeno_podnikem:true,
+    odepsano_by:odepsanoByWorkerId, odepsano_at:new Date().toISOString()
+  };
+  try {
+    var res = await db.from('ucty').upsert([row]);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+  UCTY_POLOZKY.push(row);
+  return { ok:true, row:row };
+}
+
+function getKapelaPolozky() {
+  return UCTY_POLOZKY.filter(function(p){ return p.typ==='kapela' && !p.smazano; })
+    .sort(function(a,b){ return b.datum.localeCompare(a.datum) || b.id-a.id; });
+}
+
+// Úprava položky na účtu - POUZE admin, nikdy nejde smazat. Původní hodnoty se zachovají
+// pro transparentnost (je vidět, že a jak byla položka opravena).
+async function updateUcetPolozka(id, fields) {
+  var p = UCTY_POLOZKY.find(function(x){return x.id===id;});
+  if (!p) return { ok:false, error:'Položka nenalezena' };
+  var puvodniPopis = p.upraveno ? p.puvodniPopis : p.popis;
+  var puvodniCastka = p.upraveno ? p.puvodniCastka : p.castka;
+  var updated = Object.assign({}, p, fields, { upraveno:true, puvodniPopis:puvodniPopis, puvodniCastka:puvodniCastka });
+  try {
+    var res = await db.from('ucty').upsert([updated]);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+  Object.assign(p, updated);
+  return { ok:true };
+}
+
+
+function nowClockStr() {
+  var d = new Date();
+  var dn=['Neděle','Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota'];
+  var hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+  return dn[d.getDay()]+' '+d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear()+' \u00b7 '+hh+':'+mm+':'+ss;
+}
+function startLiveClock(elId) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  function tick(){ el.textContent = nowClockStr(); }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ===================== VÝPLATY (evidence vyplacených peněz) =====================
+var VYPLATY = [];
+
+async function saveVyplaty() {
+  return await dbUpsert('vyplaty', VYPLATY);
+}
+
+function getVyplaceno(workerId) {
+  var total = 0;
+  for (var i=0;i<VYPLATY.length;i++) if (VYPLATY[i].workerId===workerId) total += VYPLATY[i].castka;
+  return total;
+}
+
+// Množina všech dnů, které už byly zahrnuté v nějaké výplatě (bez ohledu na to, jestli šlo o souvislé období)
+function getVyplacenDny(workerId) {
+  var set = {};
+  for (var i=0;i<VYPLATY.length;i++) {
+    var v = VYPLATY[i];
+    if (v.workerId!==workerId) continue;
+    (v.dny||[]).forEach(function(d){ set[d]=true; });
+  }
+  return set;
+}
+
+function getVyplatyForWorker(workerId) {
+  return VYPLATY.filter(function(v){return v.workerId===workerId;}).sort(function(a,b){return b.datum.localeCompare(a.datum);});
+}
+
+// Uloží novou výplatu - "dny" je pole konkrétních dat, které tato výplata pokrývá
+async function addVyplata(workerId, castka, poznamka, dny, adminId, opts) {
+  // DŮLEŽITÉ: venue_id musí být nastaveno stejně jako u submitTrzba(), jinak tahle výplata
+  // "zmizí" z venue-scoped přehledů (getZiskVenueMonth na Hlavním panelu v podniky.html) -
+  // přesně tohle byl bug, kdy se srpnové výplaty nepropsaly na hlavní stránku.
+  var kv = (typeof getVenueBySlug==='function') ? getVenueBySlug('kosatka') : null;
+  // Volitelné (opts.odecistUcty): odečtení otevřených účtů od výplaty - viz planUctyOdecet.
+  var odecet = (opts && opts.odecistUcty) ? planUctyOdecetLegacy(workerId, castka) : { polozky:[], soucet:0 };
+  var poznamkaFinal = poznamka||'';
+  if (odecet.polozky.length) poznamkaFinal = (poznamkaFinal ? poznamkaFinal+' · ' : '')+'z toho odečteno za účty: '+odecet.soucet+' Kč';
+  var v = { id:getNextId(VYPLATY), workerId:workerId, datum:todayStr(), castka:castka, poznamka:poznamkaFinal, dny:dny||[], venue_id: kv ? kv.id : null };
+  var uctyRes = await settleUctyPolozky(odecet.polozky, adminId);
+  if (!uctyRes.ok) return { ok:false, error:uctyRes.error };
+  var res = await dbUpsert('vyplaty', [v]);
+  if (!res.ok) {
+    if (odecet.polozky.length) { try { await unsettleUctyPolozky(odecet.polozky); } catch(e) {} }
+    return { ok:false, error:res.error };
+  }
+  VYPLATY.push(v);
+  // Účty se výplatou už NEMAŽOU - brigádník si je platí sám zvlášť v hotovosti
+  // (admin je smaže/upraví ručně na kartě Účty, viz smazatUcetPolozkuLegacyAdmin).
+  return { ok:true, row:v, odecteno:odecet.soucet, uctyPolozek:odecet.polozky.length };
+}
+
+async function delVyplata(id) {
+  try {
+    var res = await db.from('vyplaty').delete().eq('id', id);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  VYPLATY = VYPLATY.filter(function(v){return v.id!==id;});
+  // Smaž i odpovídající automatický výdaj v pokladní knize (viz addVyplataVenue),
+  // ať po smazání výplaty zůstane pokladna v pořádku.
+  var marker = '(výplata #'+id+')';
+  var pkRows = POKLADNA.filter(function(p){ return (p.popis||'').indexOf(marker)!==-1; });
+  // Účty odečtené z té výplaty (marker "(účty #1,2)") zase otevři - výplata,
+  // ze které se zaplatily, už neexistuje.
+  var obnoveneUcty = [];
+  pkRows.forEach(function(pk){
+    var m = /\(účty #([\d,]+)\)/.exec(pk.popis||'');
+    if (!m) return;
+    m[1].split(',').forEach(function(sid){
+      var up = UCTY_POLOZKY.find(function(x){ return x.id===parseInt(sid,10); });
+      if (up && up.smazano) obnoveneUcty.push(up);
+    });
+  });
+  for (var i=0; i<pkRows.length; i++) { await deletePokladnaZapisAdmin(pkRows[i].id); }
+  if (obnoveneUcty.length) { try { await unsettleUctyPolozky(obnoveneUcty); } catch(e) {} }
+  return { ok:true, obnovenoUctu:obnoveneUcty.length };
+}
+
+// Oprava už zapsané výplaty (částka a/nebo poznámka) - pro admina, co si všimne
+// překlepu nebo chce zpětně opravit částku, aniž by musel výplatu mazat a psát znovu.
+async function updateVyplata(id, castka, poznamka) {
+  try {
+    var patch = { castka:castka };
+    if (poznamka!==undefined) patch.poznamka = poznamka;
+    var res = await db.from('vyplaty').update(patch).eq('id', id);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var v = VYPLATY.find(function(x){return x.id===id;});
+  if (v) { v.castka = castka; if (poznamka!==undefined) v.poznamka = poznamka; }
+  // Oprav i částku odpovídajícího automatického výdaje v pokladní knize
+  // (viz addVyplataVenue) - ať oprava výplaty opraví i pokladnu.
+  var marker = '(výplata #'+id+')';
+  var pk = POKLADNA.find(function(p){ return (p.popis||'').indexOf(marker)!==-1; });
+  if (pk) {
+    pk.castka = castka;
+    try { await db.from('pokladna').update({ castka:castka }).eq('id', pk.id); } catch(e) {}
+  }
+  return { ok:true };
+}
+
+// ===================== STANOVIŠTĚ PRO DEN (fallback mimo rozpis) =====================
+// Pro výpočet výdělku a sazby v den, kdy brigádník nemá naplánovanou směnu
+// (např. si jen dopisuje čas z předchozí noci), použij jeho výchozí stanoviště.
+function getMistoProDen(workerId, datum) {
+  var s = SCHEDULE.find(function(x){return x.workerId===workerId && x.datum===datum;});
+  if (s) return s.mistoId;
+  var w = getWorkerById(workerId);
+  return w ? w.misto : null;
+}
+
+// Vrátí seznam VŠECH nevyplacených dnů brigádníka (s hodinami/Kč pro ten den), seřazené od nejstaršího.
+// Používá se v modálu "Vyplatit", aby admin mohl vybrat přesně, za které dny teď platí.
+function getNevyplaceneDny(workerId) {
+  var paidDays = getVyplacenDny(workerId);
+  var today = todayStr();
+  var seen = {};
+  var out = [];
+  for (var i=0;i<PRACOVNI_DNY.length;i++) {
+    var pd = PRACOVNI_DNY[i];
+    if (pd.workerId!==workerId) continue;
+    if (pd.datum > today) continue;
+    if (!pd.prichod || !pd.odchod) continue;
+    if (seen[pd.datum]) continue;
+    seen[pd.datum]=true;
+    if (paidDays[pd.datum]) continue;
+    var h = calcHodiny(pd.prichod, pd.odchod);
+    var mistoId = getMistoProDen(workerId, pd.datum);
+    var hruby = h*getSazba(mistoId, workerId);
+    var pen = 0;
+    for (var j=0;j<PENALIZACE.length;j++) { var pn=PENALIZACE[j]; if (pn.workerId===workerId && pn.datum===pd.datum) pen+=pn.castka; }
+    var ucty = 0;
+    for (var k=0;k<UCTY_POLOZKY.length;k++) { var uc=UCTY_POLOZKY[k]; if (uc.workerId===workerId && !uc.smazano && uc.datum===pd.datum) ucty+=uc.castka; }
+    // "ucty" tady zůstává jen informativně (kolik měl ten den na účtu) - do
+    // "cisty" (částky, co se doopravdy vyplatí) se účet NEODEČÍTÁ, viz níže.
+    out.push({ datum:pd.datum, hodiny:h, hruby:hruby, penalizace:pen, ucty:ucty, cisty:hruby-pen });
+  }
+  out.sort(function(a,b){return a.datum.localeCompare(b.datum);});
+  return out;
+}
+
+// ===================== PŘEPOČET VÝDĚLKU (bere jen dny, co ještě nebyly v žádné výplatě) =====================
+function getVydelek(workerId) {
+  var dny = getNevyplaceneDny(workerId);
+  var hodiny=0, hruby=0, pen=0;
+  dny.forEach(function(d){ hodiny+=d.hodiny; hruby+=d.hruby; pen+=d.penalizace; });
+  // DŮLEŽITÉ: dluh na účtu se počítá jako prostý součet všech nesmazaných položek
+  // (bez ohledu na to, jestli datum položky přesně sedí na nějaký odpracovaný den).
+  // Dřív se počítal jen z getNevyplaceneDny() přes shodu data - položka, která nepadla
+  // přesně na den s odpracovanou směnou (nebo když brigádník neměl žádnou), se tím
+  // tiše ztratila a dluh vycházel 0, i když na účtu reálně něco viselo.
+  var ucty = 0;
+  UCTY_POLOZKY.forEach(function(p){ if (p.workerId===workerId && !p.smazano) ucty+=p.castka; });
+  var vyplaceno = getVyplaceno(workerId);
+  // Účty (dluh za odebrané zboží) se od výplaty NEODEČÍTAJÍ - brigádník si je
+  // platí sám zvlášť. "uctyDluh" je tu jen pro informativní zobrazení.
+  return { hodiny:roundH(hodiny), hruby:hruby, penalizaceTotal:pen, uctyDluh:ucty, vyplaceno:vyplaceno, cisty:hruby-pen, nevyplaceneDny:dny };
+}
+
+function getTotalVydelekFull(workerId) {
+  var hodiny=0, hruby=0;
+  var seen = {};
+  for (var i=0;i<PRACOVNI_DNY.length;i++) {
+    var pd = PRACOVNI_DNY[i];
+    if (pd.workerId!==workerId) continue;
+    if (!pd.prichod || !pd.odchod) continue;
+    if (seen[pd.datum]) continue;
+    seen[pd.datum]=true;
+    var h = calcHodiny(pd.prichod, pd.odchod);
+    hodiny += h;
+    var mistoId = getMistoProDen(workerId, pd.datum);
+    hruby += h * getSazba(mistoId, workerId);
+  }
+  return { hodiny:roundH(hodiny), hruby:hruby };
+}
+
+// ===================== SKLAD (Krámek + Výčep) =====================
+var SKLAD_PRODUKTY = [];
+var SKLAD_POHYBY = [];
+var SKLAD_INVENTURY = [];
+var SKLAD_PRODEJE = [];
+
+// Kolik 4cl panáků je typicky v jedné 0,7l lahvi lihoviny (pro přepočet "zbývá X panáků" na desetinnou část lahve)
+var PANAKU_NA_LAHEV = 17;
+
+var SKLAD_KATEGORIE_KRAM = ['Potraviny','Cukrovinky','Hračky','Alkoholické nápoje','Nealkoholické nápoje','Drogerie','Pečivo','Ostatní'];
+var SKLAD_KATEGORIE_VYCEP = ['Pivo','Víno','Lihoviny','Nealko/Mixery','Ostatní'];
+function getKategorieList(sklad) {
+  return sklad==='vycep' ? SKLAD_KATEGORIE_VYCEP : SKLAD_KATEGORIE_KRAM;
+}
+
+
+// Rozřadí produkt do jedné z 8 kategorií podle názvu (podle klíčových slov a značek).
+// Používá se jak pro nové produkty, tak pro přeřazení už existujících v tlačítku "Přegenerovat kategorie".
+function classifyKategorie(sklad, nazev) {
+  function noDia(s) {
+    return s.replace(/[áàâä]/g,'a').replace(/[éèêë]/g,'e').replace(/[íìîï]/g,'i').replace(/[óòôö]/g,'o')
+      .replace(/[úùûü]/g,'u').replace(/ý/g,'y').replace(/č/g,'c').replace(/ď/g,'d').replace(/ě/g,'e')
+      .replace(/ň/g,'n').replace(/ř/g,'r').replace(/š/g,'s').replace(/ť/g,'t').replace(/ů/g,'u').replace(/ž/g,'z');
+  }
+  var s = noDia(String(nazev).toLowerCase());
+
+  if (sklad === 'vycep') {
+    var PIVO = ['pivo','gambrinus','pilsner','chodovar','birell','frisco','radegast','staropramen','krusovice','heineken','corona','branik','kelimek - pivo','reza'];
+    var VINO = ['vino','sekt','prosecco','prosseco','prosecoo','strik','houba','frankovka','bostavan','borgomori'];
+    for (var i=0;i<PIVO.length;i++) if (s.indexOf(PIVO[i])!==-1) return 'Pivo';
+    for (var i=0;i<VINO.length;i++) if (s.indexOf(VINO[i])!==-1) return 'Víno';
+    var NEALKO_MIX = ['tonic','cola','kelimek','zapalovac'];
+    for (var i=0;i<NEALKO_MIX.length;i++) if (s.indexOf(NEALKO_MIX[i])!==-1) return 'Nealko/Mixery';
+    return 'Lihoviny';
+  }
+
+  var RULES = [
+    ['Pečivo', ['rohlik','chleb','houska','bageta','loupak','vdolek','satecek','strudl',' veka','koblih','bulka','toust','preclik','briosk','croissant','crois.']],
+    ['Cukrovinky', ['cokolad','bonbon','lizatk','lizatka','zvyka','zvykac','susenk','oplatk','keks','tycink',
+      'haribo','kitkat','mentos','chupa','orion','twix','bounty','mars ','marsu','snickers','milka','kinder',
+      'lentilk','dropsy','gumov','marshmall','wafer','pribiniov','fidorka','margot','yoyo','cool ','lollipop',
+      'griliash','delisia','manner','milkway','toffifee','skittles','duo penotti','nutella','3bit','shoko',
+      'porleo','anita','bebeto','bonpari','casali','corny','exara','figaro','fitness ber','florian','hit choco',
+      'hit nuts','horicke trub','jojo','m&m','mickey lolipops','nimm2','pez ','papita','sour mad','sour powder',
+      'tictac','twister','argo lizatk','balzam jahoda','bananas tom','bananas john','duo kmotr','smilies',
+      'cukr.vata','candy schaum','4d fruit gummy','7days coc','7days crois','7day','crois. clasic','crois. maxi','crois. org',
+      'airwaves','alaska cocoa','alaska coconut','alaska hazelnut','alaska milk','alaska nuts','balila trub','hortice','orbit ']],
+    ['Hračky', ['hracka','panenk','auticko','bublifuk','pistole na vodu','nafukovac','plysak','vetrnik','frisbee','skakac','bublinov','stavebnice','popups marvel','music monkey']],
+    ['Alkoholické nápoje', ['pivo','vino','vodka','whisk','liker','jack daniels','martini','fernet','becherovk','griotte','slivovic',
+      'absinth','tequila','metaxa','baileys','jagermeister','campari','bozkov','chnapka','duo kmotr',
+      'corona extra','branik','krusovice','heineken','gambrinus','pilsner','radegast','staropramen','stella',
+      'frankovka','bostavan','borgomori','avanti spritz','chodovar']],
+    ['Nealkoholické nápoje', ['voda','limonad',' kola','cola','fanta','sprite','ledovy caj','ice tea','icetea','dzus','juice',
+      'energetick','redbull','red bull','monster','birell','kinley','tonic','vitamin water','isotonic',
+      'powerade','aloe vera','fuzetea','fuze tea','mattoni','rajec','toma ','relax ','cappy','frisco',
+      'pepsi','schweppes','semtex','big shock','4move','adrenalin','aquila','beneta','devore','excelent',
+      'natura nepe','vitalfruit','jemca ','jemca lesni','cosmos do vody','eis kaffe','eiskaffe','concertino',
+      'basil drink','bomba jungle','bomba pink']],
+    ['Drogerie', ['opalovac','repelent','mydlo','sampon','zubni pasta','vlhcene ubrousky','deodorant','plena','vlozk',
+      'zilet','toaletni papir','toaletmi papir','kapesnik','krem na','hygien','nivea','pasta na zuby',
+      'aquafresh','always classic','huggies','indulona','odol','palmolive','phantom kartacek','astrid',
+      'fresh air','fa kids']],
+    ['Potraviny', ['pizza','chips','sunka','salam','klobas','parek','sardink','konzerv','tunak','majonez','kecup',
+      'horcice','dzem','med','maslo',' syr','jogurt','mleko','vejce','rybi','krekr','arasid','orisk',
+      'pochutin','pistaci','burak','slanin','kimchi','a-one','polevka','tortilla','burger','hot dog',
+      'pribina','pomazank','veprove','hovezi','kachni','kureci','cheddar','eidam','gervais','hame ',
+      'herkules','madeta','majka','rixy','smetanito','viva pastika','dobre horicke jog','bibis',
+      'texas tuna','bramburky','bohemia','cheetos','arado popcorn','aro krupky','bersi','cinema',
+      'lednacek','misa jahoda','misa tvaroh','seville premium','chocapic','jihlavanka','marila standart',
+      'mokate','nescafe','paprikas','snotsqueeze','sul 1kg',' sul ','sul1kg']]
+  ];
+  for (var i=0;i<RULES.length;i++) {
+    var cat=RULES[i][0], keys=RULES[i][1];
+    for (var j=0;j<keys.length;j++) if (s.indexOf(keys[j])!==-1) return cat;
+  }
+  return 'Ostatní';
+}
+
+// Přeřadí kategorie u VŠECH existujících produktů podle názvu (pro opravu starých dat po nasazení)
+async function reklasifikujVsechnyKategorie() {
+  var toSave = [];
+  for (var i=0;i<SKLAD_PRODUKTY.length;i++) {
+    var p = SKLAD_PRODUKTY[i];
+    var novaKat = classifyKategorie(p.sklad, p.nazev);
+    if (p.kategorie !== novaKat) { p.kategorie = novaKat; toSave.push(p); }
+  }
+  if (toSave.length) await db.from('sklad_produkty').upsert(toSave);
+  return toSave.length;
+}
+
+var SKLAD_PRODUKTY_SEED = [{"id": 1, "sklad": "vycep", "nazev": "Pilsner Urquell (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 2, "sklad": "vycep", "nazev": "Chodovar 11° (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 3, "sklad": "vycep", "nazev": "Chodovar tmavé (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 4, "sklad": "vycep", "nazev": "Gambrinus 11 (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 5, "sklad": "vycep", "nazev": "Frisco", "kategorie": "Nealko/Mixery", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 6, "sklad": "vycep", "nazev": "Pivo řezané (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 7, "sklad": "vycep", "nazev": "Gambrinus 10° (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 8, "sklad": "vycep", "nazev": "Gambrinus (sud)", "kategorie": "Pivo", "jednotka": "sud", "mnozstvi": 0, "aktivni": true}, {"id": 9, "sklad": "vycep", "nazev": "Birell (plechovka)", "kategorie": "Pivo", "jednotka": "plechovka", "mnozstvi": 0, "aktivni": true}, {"id": 10, "sklad": "vycep", "nazev": "Pilsner Urquell (plechovka)", "kategorie": "Pivo", "jednotka": "plechovka", "mnozstvi": 0, "aktivni": true}, {"id": 11, "sklad": "vycep", "nazev": "Kelímek - Pivo", "kategorie": "Pivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 12, "sklad": "vycep", "nazev": "Prosecco (láhev)", "kategorie": "Víno", "jednotka": "láhev", "mnozstvi": 0, "aktivni": true}, {"id": 13, "sklad": "vycep", "nazev": "Víno dle nabídky (láhev)", "kategorie": "Víno", "jednotka": "láhev", "mnozstvi": 0, "aktivni": true}, {"id": 14, "sklad": "vycep", "nazev": "Střik (láhev vína)", "kategorie": "Víno", "jednotka": "láhev", "mnozstvi": 0, "aktivni": true}, {"id": 15, "sklad": "vycep", "nazev": "Houba (láhev vína)", "kategorie": "Víno", "jednotka": "láhev", "mnozstvi": 0, "aktivni": true}, {"id": 16, "sklad": "vycep", "nazev": "Bohemia sekt demi 0,75l", "kategorie": "Víno", "jednotka": "láhev", "mnozstvi": 0, "aktivni": true}, {"id": 17, "sklad": "vycep", "nazev": "Bailey's", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 18, "sklad": "vycep", "nazev": "Amundsen Jablko", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 19, "sklad": "vycep", "nazev": "Amundsen Meloun", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 20, "sklad": "vycep", "nazev": "Beafeter Pink", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 21, "sklad": "vycep", "nazev": "Božkov Jablko", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 22, "sklad": "vycep", "nazev": "Božkov Káva", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 23, "sklad": "vycep", "nazev": "Božkov Rum mandle", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 24, "sklad": "vycep", "nazev": "Božkov Vodka", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 25, "sklad": "vycep", "nazev": "Capitan Morgan Pineapl", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 26, "sklad": "vycep", "nazev": "Jack Daniels Apple", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 27, "sklad": "vycep", "nazev": "Jack Daniels Fire", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 28, "sklad": "vycep", "nazev": "Jameson", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 29, "sklad": "vycep", "nazev": "Rum Diplomatico Excl.", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 30, "sklad": "vycep", "nazev": "Metaxa 5*", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 31, "sklad": "vycep", "nazev": "Absolut", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 32, "sklad": "vycep", "nazev": "Havana Club Aňejo 3", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 33, "sklad": "vycep", "nazev": "Captain Morgan Spic.", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 34, "sklad": "vycep", "nazev": "Legendario Elixir", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 35, "sklad": "vycep", "nazev": "Olmeca Gold", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 36, "sklad": "vycep", "nazev": "Olmeca Silver", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 37, "sklad": "vycep", "nazev": "Beefeater", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 38, "sklad": "vycep", "nazev": "Jägermeister", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 39, "sklad": "vycep", "nazev": "Becherovka", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 40, "sklad": "vycep", "nazev": "Becherovka Lemond", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 41, "sklad": "vycep", "nazev": "Magistr", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 42, "sklad": "vycep", "nazev": "Fernet Stock", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 43, "sklad": "vycep", "nazev": "Fernet Citrus", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 44, "sklad": "vycep", "nazev": "Koskenkorva peach", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 45, "sklad": "vycep", "nazev": "Amundsen", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 46, "sklad": "vycep", "nazev": "Aperol", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 47, "sklad": "vycep", "nazev": "Božkov Griotka", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 48, "sklad": "vycep", "nazev": "Božkov Zelená", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 49, "sklad": "vycep", "nazev": "Polar Jahoda", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 50, "sklad": "vycep", "nazev": "Božkov Rum", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 51, "sklad": "vycep", "nazev": "Slivovice", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 52, "sklad": "vycep", "nazev": "Tullamore Dew", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 53, "sklad": "vycep", "nazev": "Johnnie Walker", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 54, "sklad": "vycep", "nazev": "Jim Beam", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 55, "sklad": "vycep", "nazev": "Jack Daniels Honey", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 56, "sklad": "vycep", "nazev": "Jack Daniels orig.", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 57, "sklad": "vycep", "nazev": "Rum Republica", "kategorie": "Lihoviny", "jednotka": "4cl", "mnozstvi": 0, "aktivni": true}, {"id": 58, "sklad": "kram", "nazev": "3Bit classic", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 59, "sklad": "kram", "nazev": "3Bit nuts 46g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 60, "sklad": "kram", "nazev": "3Bite 46g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 61, "sklad": "kram", "nazev": "4D Fruit gummy 65g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 62, "sklad": "kram", "nazev": "4Move Orange 750ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 63, "sklad": "kram", "nazev": "7Days Coc. Bar vani. 32g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 64, "sklad": "kram", "nazev": "7Days crois. Clasic 60g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 65, "sklad": "kram", "nazev": "7Days crois. Maxi 98g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 66, "sklad": "kram", "nazev": "7Days crois. Org. 60g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 67, "sklad": "kram", "nazev": "7days Cocoa bar 30g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 68, "sklad": "kram", "nazev": "A-one hovezi 85g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 69, "sklad": "kram", "nazev": "A-one kachni 85g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 70, "sklad": "kram", "nazev": "A-one veprove 85g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 71, "sklad": "kram", "nazev": "Adrenalin cactus 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 72, "sklad": "kram", "nazev": "Adrenalin classic 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 73, "sklad": "kram", "nazev": "Airwaves Cool Classis", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 74, "sklad": "kram", "nazev": "Airwaves Lime 14g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 75, "sklad": "kram", "nazev": "Alaska Cocoa Cr. 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 76, "sklad": "kram", "nazev": "Alaska Coconut Cr. 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 77, "sklad": "kram", "nazev": "Alaska Hazelnut Cream", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 78, "sklad": "kram", "nazev": "Alaska Milk Cr. 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 79, "sklad": "kram", "nazev": "Alaska Nuts cr. 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 80, "sklad": "kram", "nazev": "Alex lizatko Mouth 15g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 81, "sklad": "kram", "nazev": "Aloe Vera", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 82, "sklad": "kram", "nazev": "Always Classic Night", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 83, "sklad": "kram", "nazev": "Anita 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 84, "sklad": "kram", "nazev": "Anita Nugatova 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 85, "sklad": "kram", "nazev": "Aquafresh 100ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 86, "sklad": "kram", "nazev": "Aquila bros. Light 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 87, "sklad": "kram", "nazev": "Aquila cerny bros. 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 88, "sklad": "kram", "nazev": "Aquila cerny citron 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 89, "sklad": "kram", "nazev": "Aquila zeleny cit. 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 90, "sklad": "kram", "nazev": "Arado Popcorn 90g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 91, "sklad": "kram", "nazev": "Arado Slane Tycinky 43g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 92, "sklad": "kram", "nazev": "Aro Arasidove Krupky 70g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 93, "sklad": "kram", "nazev": "Aro Tav. Syr 140g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 94, "sklad": "kram", "nazev": "Aro kartáček medium", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 95, "sklad": "kram", "nazev": "Aro krupky 70g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 96, "sklad": "kram", "nazev": "Avanti Spritz 0,75L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 97, "sklad": "kram", "nazev": "Balila Trub. Kokos 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 98, "sklad": "kram", "nazev": "Bananas Tom 25ml", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 99, "sklad": "kram", "nazev": "Basil drink Cockt. 290ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 100, "sklad": "kram", "nazev": "Basil drink Lychee 290ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 101, "sklad": "kram", "nazev": "Basil drink Wat. 290ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 102, "sklad": "kram", "nazev": "Bebeto Super Belts 75g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 103, "sklad": "kram", "nazev": "Bebeto sour 35g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 104, "sklad": "kram", "nazev": "Bebeto sticks", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 105, "sklad": "kram", "nazev": "Beneta Jemne p. 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 106, "sklad": "kram", "nazev": "Beneta Nep. 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 107, "sklad": "kram", "nazev": "Beneta Perliva 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 108, "sklad": "kram", "nazev": "Bersi Jalapeno 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 109, "sklad": "kram", "nazev": "Bersi Uzena Sunka 60g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 110, "sklad": "kram", "nazev": "Bersi XXL 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 111, "sklad": "kram", "nazev": "Bersi pikantni 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 112, "sklad": "kram", "nazev": "Bersi syr. Koule 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 113, "sklad": "kram", "nazev": "Bersi syr. Maxi 300g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 114, "sklad": "kram", "nazev": "Bibis instant. 55g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 115, "sklad": "kram", "nazev": "Boh. Sunka - 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 116, "sklad": "kram", "nazev": "Boh. Vroubky Pizza 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 117, "sklad": "kram", "nazev": "Bohemia Krispers 60g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 118, "sklad": "kram", "nazev": "Bohemia Solene 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 119, "sklad": "kram", "nazev": "Bohemia Tycinky Solene", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 120, "sklad": "kram", "nazev": "Bohemia chips syr 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 121, "sklad": "kram", "nazev": "Bohemia hrad. Kmin 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 122, "sklad": "kram", "nazev": "Bohemia hrad. Kmin 90g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 123, "sklad": "kram", "nazev": "Bohemia krispers 60g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 124, "sklad": "kram", "nazev": "Bohemia krupky ars. 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 125, "sklad": "kram", "nazev": "Bohemia krupky ars. 50g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 126, "sklad": "kram", "nazev": "Bohemia krupky mega 150g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 127, "sklad": "kram", "nazev": "Bohemia paprika 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 128, "sklad": "kram", "nazev": "Bohemia slanina 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 129, "sklad": "kram", "nazev": "Bohemia spiz 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 130, "sklad": "kram", "nazev": "Bohemia sul 130g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 131, "sklad": "kram", "nazev": "Bohemia sul 60g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 132, "sklad": "kram", "nazev": "Bohemia tyc. Sol. 160g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 133, "sklad": "kram", "nazev": "Bohemia tyc. Sul 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 134, "sklad": "kram", "nazev": "Bohemia tyc. Syr 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 135, "sklad": "kram", "nazev": "Bohemia vro. Horc. 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 136, "sklad": "kram", "nazev": "Bohemia vro. Sul 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 137, "sklad": "kram", "nazev": "Bomba jungle 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 138, "sklad": "kram", "nazev": "Bomba pink 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 139, "sklad": "kram", "nazev": "BonPari org. 90g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 140, "sklad": "kram", "nazev": "Borgomori Bianco 0,75L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 141, "sklad": "kram", "nazev": "Bostavan Chardo. 0,75L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 142, "sklad": "kram", "nazev": "Bostavan Merlot 0,75L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 143, "sklad": "kram", "nazev": "Bozkov Vodka 0,2L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 144, "sklad": "kram", "nazev": "Bozkov original 200ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 145, "sklad": "kram", "nazev": "Bozkov vodka 0,04L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 146, "sklad": "kram", "nazev": "Bramburky hosp. Ces. 70g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 147, "sklad": "kram", "nazev": "Bramburky hospo. Sul 70g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 148, "sklad": "kram", "nazev": "Bramburky hospo. Syr 70g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 149, "sklad": "kram", "nazev": "Branik Lezak 0,5L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 150, "sklad": "kram", "nazev": "Brikety", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 151, "sklad": "kram", "nazev": "Candy schaum 70ml", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 152, "sklad": "kram", "nazev": "Cappy - jablko", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 153, "sklad": "kram", "nazev": "Cappy - pomeranc  200ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 154, "sklad": "kram", "nazev": "Casali bananXL 140g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 155, "sklad": "kram", "nazev": "Cheddar 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 156, "sklad": "kram", "nazev": "Cheetos cheese 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 157, "sklad": "kram", "nazev": "Cheetos ketchup 85g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 158, "sklad": "kram", "nazev": "Chleb - 1/2", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 159, "sklad": "kram", "nazev": "Chleb - 200g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 160, "sklad": "kram", "nazev": "Chleb cely", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 161, "sklad": "kram", "nazev": "Chleba cely 1200g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 162, "sklad": "kram", "nazev": "Chnapka", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 163, "sklad": "kram", "nazev": "Chocapic 25g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 164, "sklad": "kram", "nazev": "ChupaCh. Zvyk. Paint 27g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 165, "sklad": "kram", "nazev": "ChupaChups Babol 27g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 166, "sklad": "kram", "nazev": "ChupaChups Fro. Pop 26g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 167, "sklad": "kram", "nazev": "ChupaChups Melody 15g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 168, "sklad": "kram", "nazev": "Cinema Time Ham Cheese", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 169, "sklad": "kram", "nazev": "Cinema Time Salted 90g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 170, "sklad": "kram", "nazev": "CinemaTime - butter", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 171, "sklad": "kram", "nazev": "CinemaTime - salted", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 172, "sklad": "kram", "nazev": "Coca Cola", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 173, "sklad": "kram", "nazev": "CocaCola - 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 174, "sklad": "kram", "nazev": "CocaCola - zero 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 175, "sklad": "kram", "nazev": "CocaCola 1l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 176, "sklad": "kram", "nazev": "CocaCola 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 177, "sklad": "kram", "nazev": "Cola 2l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 178, "sklad": "kram", "nazev": "Cola zero - 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 179, "sklad": "kram", "nazev": "Concertino Light Fresh", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 180, "sklad": "kram", "nazev": "Cool Cit. 500ml", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 181, "sklad": "kram", "nazev": "Corny Banan 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 182, "sklad": "kram", "nazev": "Corny Big Banana", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 183, "sklad": "kram", "nazev": "Corny Big Brownie", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 184, "sklad": "kram", "nazev": "Corny Big Straberry", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 185, "sklad": "kram", "nazev": "Corny Coconut 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 186, "sklad": "kram", "nazev": "Corny Cranbery 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 187, "sklad": "kram", "nazev": "Corny Protein", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 188, "sklad": "kram", "nazev": "Corny brownie 50g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 189, "sklad": "kram", "nazev": "Corny chocolate 40g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 190, "sklad": "kram", "nazev": "Corny white 40g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 191, "sklad": "kram", "nazev": "Corona extra 0,355L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 192, "sklad": "kram", "nazev": "Cosmos do vody 10ks", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 193, "sklad": "kram", "nazev": "Ctyrlistek Zvykacky 35g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 194, "sklad": "kram", "nazev": "Cukr.Vata Minions 20g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 195, "sklad": "kram", "nazev": "Devore Canella 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 196, "sklad": "kram", "nazev": "Devore Orange 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 197, "sklad": "kram", "nazev": "DobraVoda J. Per -1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 198, "sklad": "kram", "nazev": "DobraVoda Jah.Nep. 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 199, "sklad": "kram", "nazev": "DobraVoda Mal. Nep. 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 200, "sklad": "kram", "nazev": "DobraVoda Nep. 1.5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 201, "sklad": "kram", "nazev": "Dobre horicke jog. 38g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 202, "sklad": "kram", "nazev": "Dobre horicke orisky 38g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 203, "sklad": "kram", "nazev": "Duo Kmotr - 75g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 204, "sklad": "kram", "nazev": "Eidam 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 205, "sklad": "kram", "nazev": "Eis kaffe - 250 ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 206, "sklad": "kram", "nazev": "EisKaffe", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 207, "sklad": "kram", "nazev": "Exara Caramel 90g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 208, "sklad": "kram", "nazev": "Excelent - 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 209, "sklad": "kram", "nazev": "Fa Kids 250ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 210, "sklad": "kram", "nazev": "Fanta - shokata 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 211, "sklad": "kram", "nazev": "Fanta - zero 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 212, "sklad": "kram", "nazev": "Fanta 1l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 213, "sklad": "kram", "nazev": "Fanta Pomeranc", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 214, "sklad": "kram", "nazev": "Fanta Pomeranc 1l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 215, "sklad": "kram", "nazev": "Fanta Shokata", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 216, "sklad": "kram", "nazev": "Figaro banana 30g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 217, "sklad": "kram", "nazev": "Fini zvykacky 20g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 218, "sklad": "kram", "nazev": "Fitness berries 23,5g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 219, "sklad": "kram", "nazev": "Florian Bor. 150g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 220, "sklad": "kram", "nazev": "Florian Jah. 150g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 221, "sklad": "kram", "nazev": "Florian Lis.O. 150g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 222, "sklad": "kram", "nazev": "Florian mer. 150g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 223, "sklad": "kram", "nazev": "Florian stra. 150g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 224, "sklad": "kram", "nazev": "Florina jogurt", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 225, "sklad": "kram", "nazev": "Frankovka 1L", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 226, "sklad": "kram", "nazev": "Fresh Air 120 pcs", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 227, "sklad": "kram", "nazev": "Frisco Bellini", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 228, "sklad": "kram", "nazev": "Frisco Daiquiri 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 229, "sklad": "kram", "nazev": "Frisco FizTonic 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 230, "sklad": "kram", "nazev": "Frisco jab. 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 231, "sklad": "kram", "nazev": "Frisco lesni ov. 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 232, "sklad": "kram", "nazev": "Frisco mango 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 233, "sklad": "kram", "nazev": "Frisco spritz 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 234, "sklad": "kram", "nazev": "Fuze Tea Aloe Jah. 1,5l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 235, "sklad": "kram", "nazev": "FuzeTea Bros. - 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 236, "sklad": "kram", "nazev": "FuzeTea Bros. - 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 237, "sklad": "kram", "nazev": "FuzeTea Jah. - 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 238, "sklad": "kram", "nazev": "FuzeTea Jah. - 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 239, "sklad": "kram", "nazev": "Gambrinus - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 240, "sklad": "kram", "nazev": "Gervais - original 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 241, "sklad": "kram", "nazev": "Gervais - pazitka 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 242, "sklad": "kram", "nazev": "Gervais Redkvicka 80g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 243, "sklad": "kram", "nazev": "Hame Dzem Jahoda 20g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 244, "sklad": "kram", "nazev": "Hame Favorit 150g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 245, "sklad": "kram", "nazev": "Hame Veprove vl. 125g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 246, "sklad": "kram", "nazev": "Haribo Balla Balla 100g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 247, "sklad": "kram", "nazev": "Haribo Cherries 100g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 248, "sklad": "kram", "nazev": "Haribo Goldbaren 100g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 249, "sklad": "kram", "nazev": "Haribo Saft Gold. 85g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 250, "sklad": "kram", "nazev": "Heineken - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 251, "sklad": "kram", "nazev": "Herkules - 75g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 252, "sklad": "kram", "nazev": "Hit choco 220g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 253, "sklad": "kram", "nazev": "Hit nuts 220g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 254, "sklad": "kram", "nazev": "Horcice plno. - 100g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 255, "sklad": "kram", "nazev": "Horicke trub. Kokos 38g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 256, "sklad": "kram", "nazev": "Horicke trub. Nugat 34g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 257, "sklad": "kram", "nazev": "Hortice Kremzska 100g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 258, "sklad": "kram", "nazev": "Hovezi Gulas415g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 259, "sklad": "kram", "nazev": "Hradecke Tycinky 90g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 260, "sklad": "kram", "nazev": "Huggies", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 261, "sklad": "kram", "nazev": "Indulona sos 85ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 262, "sklad": "kram", "nazev": "Jack Daniels Coca Cola", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 263, "sklad": "kram", "nazev": "Jemca Jahoda", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 264, "sklad": "kram", "nazev": "Jemca indicky čaj bal.", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 265, "sklad": "kram", "nazev": "Jemča lesní jahoda", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 266, "sklad": "kram", "nazev": "Jemča pomeranč bal.", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 267, "sklad": "kram", "nazev": "Jemča černý rybíz ba.", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 268, "sklad": "kram", "nazev": "Jihlavanka Kava 250g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 269, "sklad": "kram", "nazev": "JoJo Mini Medvidci 42g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 270, "sklad": "kram", "nazev": "JoJo jahudky 80g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 271, "sklad": "kram", "nazev": "KimChi Kureci - 75g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 272, "sklad": "kram", "nazev": "Kinley Zero Tonic 1,5l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 273, "sklad": "kram", "nazev": "Kinley tonic 1,5 l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 274, "sklad": "kram", "nazev": "KitKat Chunky White 40g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 275, "sklad": "kram", "nazev": "Kobliha", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 276, "sklad": "kram", "nazev": "Kobliha 1ks", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 277, "sklad": "kram", "nazev": "Korunová položka 15%", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 278, "sklad": "kram", "nazev": "Korunová položka 21%", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 279, "sklad": "kram", "nazev": "Krusovice Cerne - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 280, "sklad": "kram", "nazev": "Krusovice Lezak - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 281, "sklad": "kram", "nazev": "Kureci Parky 250g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 282, "sklad": "kram", "nazev": "Lednacek Kakao 31g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 283, "sklad": "kram", "nazev": "Lednacek Vanilka 31g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 284, "sklad": "kram", "nazev": "Linteo kapesníky 10x10", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 285, "sklad": "kram", "nazev": "Lovecky Salam - 75g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 286, "sklad": "kram", "nazev": "M&Ms peanut 45g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 287, "sklad": "kram", "nazev": "Madeta Mleko 1,5 l", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 288, "sklad": "kram", "nazev": "Madeta niva 150g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 289, "sklad": "kram", "nazev": "Majka - 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 290, "sklad": "kram", "nazev": "Marila Standart 250g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 291, "sklad": "kram", "nazev": "Mars 51g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 292, "sklad": "kram", "nazev": "Maslo 250g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 293, "sklad": "kram", "nazev": "Mattoni Perliva 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 294, "sklad": "kram", "nazev": "Med Kvetinovy 20g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 295, "sklad": "kram", "nazev": "Mickey lolipops", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 296, "sklad": "kram", "nazev": "Misa Jahoda 47g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 297, "sklad": "kram", "nazev": "Misa Tvaroh 47g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 298, "sklad": "kram", "nazev": "Mleko Polo. 1L", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 299, "sklad": "kram", "nazev": "Mokate Gold Cappuccino", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 300, "sklad": "kram", "nazev": "Monster Aussie Le. 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 301, "sklad": "kram", "nazev": "Monster E. Mega 553ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 302, "sklad": "kram", "nazev": "Monster Fiesta Ma. 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 303, "sklad": "kram", "nazev": "Monster Khaotic 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 304, "sklad": "kram", "nazev": "Monster Punch E. 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 305, "sklad": "kram", "nazev": "Monster Ultra Par. 500ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 306, "sklad": "kram", "nazev": "Music Monkey", "kategorie": "Hračky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 307, "sklad": "kram", "nazev": "Natura nepe. 1,5L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 308, "sklad": "kram", "nazev": "Nescafe 16,5g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 309, "sklad": "kram", "nazev": "Nimm2 Soft 90g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 310, "sklad": "kram", "nazev": "Nivea HairMilk 200ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 311, "sklad": "kram", "nazev": "Odol 75ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 312, "sklad": "kram", "nazev": "Orbit Spearmint 14g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 313, "sklad": "kram", "nazev": "Otma kecup 310g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 314, "sklad": "kram", "nazev": "PEZ dextrose", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 315, "sklad": "kram", "nazev": "Palmolive", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 316, "sklad": "kram", "nazev": "Papita Caramel 33g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 317, "sklad": "kram", "nazev": "Paprikas - 75g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 318, "sklad": "kram", "nazev": "Pepo Drev. Podpal.", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 319, "sklad": "kram", "nazev": "Phantom Kartacek", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 320, "sklad": "kram", "nazev": "Pilsner - 330ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 321, "sklad": "kram", "nazev": "PilsnerUrquel", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 322, "sklad": "kram", "nazev": "Plamenak bublifuk", "kategorie": "Hračky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 323, "sklad": "kram", "nazev": "PopUps Marvel 10g", "kategorie": "Hračky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 324, "sklad": "kram", "nazev": "Porleo 30g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 325, "sklad": "kram", "nazev": "Porleo Jahoda 30g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 326, "sklad": "kram", "nazev": "Porleo choco", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 327, "sklad": "kram", "nazev": "Powerade Blackcurrant", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 328, "sklad": "kram", "nazev": "Radegast - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 329, "sklad": "kram", "nazev": "Rashid arasidy 60g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 330, "sklad": "kram", "nazev": "RedBull - 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 331, "sklad": "kram", "nazev": "Relax Kaktus", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 332, "sklad": "kram", "nazev": "Relax Pyre Pres. - 120g", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 333, "sklad": "kram", "nazev": "Relax kaktus 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 334, "sklad": "kram", "nazev": "Rioba Dzem  Boruvka 20g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 335, "sklad": "kram", "nazev": "Rioba Dzem Jahoda 20g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 336, "sklad": "kram", "nazev": "Rixy cheese 40g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 337, "sklad": "kram", "nazev": "Rixy pizza 40g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 338, "sklad": "kram", "nazev": "Rohlik 1ks", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 339, "sklad": "kram", "nazev": "Seville premium 200g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 340, "sklad": "kram", "nazev": "Shoko Bananen XL 140g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 341, "sklad": "kram", "nazev": "Skittles Kysele 38g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 342, "sklad": "kram", "nazev": "Skittles Ovocne 38g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 343, "sklad": "kram", "nazev": "Smetanito kremove", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 344, "sklad": "kram", "nazev": "Smilies 27g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 345, "sklad": "kram", "nazev": "Smilies Milk 27g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 346, "sklad": "kram", "nazev": "Smilies Mlec. 27g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 347, "sklad": "kram", "nazev": "SnotSqueeze  jab. 120g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 348, "sklad": "kram", "nazev": "Sour Mad. 60g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 349, "sklad": "kram", "nazev": "Sour Mad. Crush 60g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 350, "sklad": "kram", "nazev": "Sour Powder", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 351, "sklad": "kram", "nazev": "Sprite 1l", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 352, "sklad": "kram", "nazev": "Sprite Zero 330ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 353, "sklad": "kram", "nazev": "Sprite plech", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 354, "sklad": "kram", "nazev": "Staropramen 11  - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 355, "sklad": "kram", "nazev": "Staropramen 12 - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 356, "sklad": "kram", "nazev": "Stella - 500ml", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 357, "sklad": "kram", "nazev": "Stella Artois 1ks", "kategorie": "Alkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 358, "sklad": "kram", "nazev": "Sul 1Kg", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 359, "sklad": "kram", "nazev": "Texas Tuna 185g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 360, "sklad": "kram", "nazev": "TicTac 18g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 361, "sklad": "kram", "nazev": "Toaletmi papir 8ks", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 362, "sklad": "kram", "nazev": "Toma Jablko", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 363, "sklad": "kram", "nazev": "Toma Jablko 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 364, "sklad": "kram", "nazev": "Toma Jahoda", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 365, "sklad": "kram", "nazev": "Toma Jahoda 250ml", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 366, "sklad": "kram", "nazev": "Twister 72g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 367, "sklad": "kram", "nazev": "Twister Mallow 73g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 368, "sklad": "kram", "nazev": "Vazka papirky", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 369, "sklad": "kram", "nazev": "Vejce 6ks", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 370, "sklad": "kram", "nazev": "VitalFruit jab. - 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 371, "sklad": "kram", "nazev": "VitalFruit jah. - 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 372, "sklad": "kram", "nazev": "VitalFruit pom. - 2L", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 373, "sklad": "kram", "nazev": "Vitamin Water Citron", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 374, "sklad": "kram", "nazev": "Vitamin Water Lev. Bor", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 375, "sklad": "kram", "nazev": "Vitamin Water Malina", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 376, "sklad": "kram", "nazev": "Vitamin Water Zero Bros.", "kategorie": "Nealkoholické nápoje", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 377, "sklad": "kram", "nazev": "Viva Pastika Drubez. 48g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 378, "sklad": "kram", "nazev": "Viva Pastika Jatrova 48g", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 379, "sklad": "kram", "nazev": "Viva Pekeln. Tousty 120g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 380, "sklad": "kram", "nazev": "Zapalovac", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 381, "sklad": "kram", "nazev": "argo bonbony fire 60g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 382, "sklad": "kram", "nazev": "argo lizatka sour 90g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 383, "sklad": "kram", "nazev": "astrid deti 30spf 200ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 384, "sklad": "kram", "nazev": "astrid sprej 50spf 150ml", "kategorie": "Drogerie", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 385, "sklad": "kram", "nazev": "balzam jahoda 4,8g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 386, "sklad": "kram", "nazev": "bananas John", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 387, "sklad": "kram", "nazev": "bebeto belts 75g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 388, "sklad": "kram", "nazev": "croissant cookies 60g", "kategorie": "Pečivo", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 389, "sklad": "kram", "nazev": "m&mS chocolate 45g", "kategorie": "Cukrovinky", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 390, "sklad": "kram", "nazev": "med", "kategorie": "Potraviny", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}, {"id": 391, "sklad": "kram", "nazev": "zapalovac", "kategorie": "Ostatní", "jednotka": "ks", "mnozstvi": 0, "aktivni": true}];
+
+function getSkladProdukty(sklad) {
+  return SKLAD_PRODUKTY.filter(function(p){return p.sklad===sklad && p.aktivni!==false;}).sort(function(a,b){return a.nazev.localeCompare(b.nazev,'cs');});
+}
+function getSkladProdukt(id) { return SKLAD_PRODUKTY.find(function(p){return p.id===id;}); }
+
+async function addSkladProdukt(sklad, nazev, kategorie, jednotka, mnozstvi) {
+  var p = { id:getNextId(SKLAD_PRODUKTY), sklad:sklad, nazev:nazev, kategorie:kategorie||'', jednotka:jednotka||'ks', mnozstvi:mnozstvi||0, aktivni:true };
+  SKLAD_PRODUKTY.push(p);
+  await db.from('sklad_produkty').upsert([p]);
+  return p;
+}
+async function updateSkladProdukt(id, fields) {
+  var p = getSkladProdukt(id);
+  if (!p) return;
+  Object.keys(fields).forEach(function(k){ p[k]=fields[k]; });
+  await db.from('sklad_produkty').upsert([p]);
+}
+async function deleteSkladProdukt(id) {
+  await updateSkladProdukt(id, {aktivni:false});
+}
+
+// Zápis pohybu (výdej ze skladu / příjem na sklad / ruční oprava) — rovnou upraví aktuální stav skladu
+async function addSkladPohyb(sklad, produktId, workerId, typ, mnozstvi, poznamka) {
+  var poh = { id:getNextId(SKLAD_POHYBY), sklad:sklad, produktId:produktId, workerId:workerId||null, datum:todayStr(), typ:typ, mnozstvi:mnozstvi, poznamka:poznamka||'' };
+  SKLAD_POHYBY.push(poh);
+  var p = getSkladProdukt(produktId);
+  if (p) {
+    if (typ==='vydej') p.mnozstvi = Math.max(0, (p.mnozstvi||0) - mnozstvi);
+    else if (typ==='prijem') p.mnozstvi = (p.mnozstvi||0) + mnozstvi;
+    else if (typ==='oprava') p.mnozstvi = mnozstvi;
+  }
+  await db.from('sklad_pohyby').upsert([poh]);
+  if (p) await db.from('sklad_produkty').upsert([p]);
+  return poh;
+}
+async function delSkladPohyb(id) {
+  var poh = SKLAD_POHYBY.find(function(x){return x.id===id;});
+  if (!poh) return;
+  var p = getSkladProdukt(poh.produktId);
+  if (p) {
+    if (poh.typ==='vydej') p.mnozstvi = (p.mnozstvi||0) + poh.mnozstvi;
+    else if (poh.typ==='prijem') p.mnozstvi = Math.max(0,(p.mnozstvi||0) - poh.mnozstvi);
+    await db.from('sklad_produkty').upsert([p]);
+  }
+  await db.from('sklad_pohyby').delete().eq('id', id);
+  SKLAD_POHYBY = SKLAD_POHYBY.filter(function(x){return x.id!==id;});
+}
+
+function getSkladPohybyList(sklad, limit) {
+  var list = SKLAD_POHYBY.filter(function(x){return x.sklad===sklad;}).sort(function(a,b){return (b.datum+b.id).localeCompare(a.datum+a.id);});
+  return limit ? list.slice(0,limit) : list;
+}
+
+// Neděle, kterou končí týden (po–ne) obsahující dané datum — používá se jako klíč týdne
+function getWeekEndSunday(datum) {
+  var p=datum.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  var day=d.getDay();
+  var diff=(day===0)?0:(7-day);
+  d.setDate(d.getDate()+diff);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function getWeekStartMonday(nedeleStr) {
+  var p=nedeleStr.split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  d.setDate(d.getDate()-6);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Uloží/přepíše týdenní inventuru (fyzické spočítání) a rovnou nastaví aktuální stav skladu na napočítanou hodnotu
+async function submitInventura(sklad, workerId, produktId, mnozstvi, tyden) {
+  tyden = tyden || getWeekEndSunday(todayStr());
+  var existing = SKLAD_INVENTURY.find(function(x){return x.sklad===sklad && x.produktId===produktId && x.tyden===tyden;});
+  if (existing) {
+    existing.mnozstvi = mnozstvi; existing.workerId = workerId; existing.datum = todayStr();
+    await db.from('sklad_inventury').upsert([existing]);
+  } else {
+    var row = { id:getNextId(SKLAD_INVENTURY), sklad:sklad, produktId:produktId, workerId:workerId, tyden:tyden, mnozstvi:mnozstvi, datum:todayStr() };
+    SKLAD_INVENTURY.push(row);
+    await db.from('sklad_inventury').upsert([row]);
+  }
+  var p = getSkladProdukt(produktId);
+  if (p) { p.mnozstvi = mnozstvi; await db.from('sklad_produkty').upsert([p]); }
+}
+
+function getInventuraForWeek(sklad, tyden) {
+  var map = {};
+  SKLAD_INVENTURY.filter(function(x){return x.sklad===sklad && x.tyden===tyden;}).forEach(function(x){ map[x.produktId]=x.mnozstvi; });
+  return map;
+}
+function getAllInventuraWeeks(sklad) {
+  var weeks = {};
+  SKLAD_INVENTURY.filter(function(x){return x.sklad===sklad;}).forEach(function(x){ weeks[x.tyden]=true; });
+  return Object.keys(weeks).sort();
+}
+
+function getPohybySumForWeek(sklad, tyden, typ) {
+  var startStr = getWeekStartMonday(tyden), endStr = tyden;
+  var map = {};
+  SKLAD_POHYBY.filter(function(x){return x.sklad===sklad && x.typ===typ && x.datum>=startStr && x.datum<=endStr;}).forEach(function(x){
+    map[x.produktId] = (map[x.produktId]||0) + x.mnozstvi;
+  });
+  return map;
+}
+
+// Kolik kusů konkrétních produktů si lidi vzali "na účet" (staff tab) v daném týdnu -
+// tohle se nepropisuje jako klasický výdej ze skladu, ale patří do stejné bilance,
+// protože fyzicky ubylo ze skladu, jen se to zaplatilo přes účet místo hotově.
+function getUctyProduktSumForWeek(sklad, tyden) {
+  var startStr = getWeekStartMonday(tyden), endStr = tyden;
+  var map = {};
+  UCTY_POLOZKY.filter(function(x){
+    return !x.smazano && x.produktId && x.datum>=startStr && x.datum<=endStr;
+  }).forEach(function(x){
+    var p = getSkladProdukt(x.produktId);
+    if (!p || p.sklad !== sklad) return;
+    map[x.produktId] = (map[x.produktId]||0) + (x.mnozstvi||1);
+  });
+  return map;
+}
+
+// Parsování textového týdenního PLU exportu z pokladny (formát: "Název produktu   (Nx)   123,00")
+function parsePluReport(text) {
+  var lines = text.split(/\r?\n/);
+  var out = [];
+  var re = /^(.+?)\(\s*(\d+)x\)\s*([\d.,]+)\s*$/;
+  for (var i=0;i<lines.length;i++) {
+    var l = lines[i].replace(/\u00a0/g,' ').replace(/\s+$/,'');
+    var m = l.match(re);
+    if (m) {
+      var nazev = m[1].replace(/\s+$/,'').trim();
+      var mnozstvi = parseInt(m[2],10);
+      var castka = parseFloat(m[3].replace(/\./g,'').replace(',','.'));
+      if (nazev && !isNaN(mnozstvi)) out.push({ nazev:nazev, mnozstvi:mnozstvi, castka:castka||0 });
+    }
+  }
+  return out;
+}
+
+// Uloží nahraný týdenní export prodejů (přepíše předchozí data pro daný sklad+týden)
+async function saveSkladProdejeReport(sklad, tyden, rows) {
+  var toDelete = SKLAD_PRODEJE.filter(function(x){return x.sklad===sklad && x.tyden===tyden;});
+  for (var i=0;i<toDelete.length;i++) await db.from('sklad_prodeje').delete().eq('id', toDelete[i].id);
+  SKLAD_PRODEJE = SKLAD_PRODEJE.filter(function(x){return !(x.sklad===sklad && x.tyden===tyden);});
+  var nid = getNextId(SKLAD_PRODEJE);
+  var newRows = rows.map(function(r){ var row = { id:nid, sklad:sklad, tyden:tyden, nazev:r.nazev, mnozstvi:r.mnozstvi, castka:r.castka }; nid++; return row; });
+  SKLAD_PRODEJE = SKLAD_PRODEJE.concat(newRows);
+  if (newRows.length) await db.from('sklad_prodeje').upsert(newRows);
+}
+
+function getProdejeForWeek(sklad, tyden) {
+  return SKLAD_PRODEJE.filter(function(x){return x.sklad===sklad && x.tyden===tyden;});
+}
+function getAllProdejeWeeks(sklad) {
+  var weeks = {};
+  SKLAD_PRODEJE.filter(function(x){return x.sklad===sklad;}).forEach(function(x){ weeks[x.tyden]=true; });
+  return Object.keys(weeks).sort();
+}
+
+// ===================== NAČTENÍ VŠECH DAT (rozšířeno o výplaty a sklad) =====================
+// Úvodní "Načítám data…" obrazovka - stránky mají obsah schovaný, dokud se
+// nenačtou data, takže brigádník by jinak viděl prázdnou bílou plochu a mohl by
+// si myslet, že appka nefunguje.
+var _firstLoadDone = false;
+function showAppLoading() {
+  if (typeof document === 'undefined' || !document.body || document.getElementById('app-loading')) return;
+  var st = document.createElement('style');
+  st.id = 'app-loading-style';
+  st.textContent = '@keyframes appspin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(st);
+  var el = document.createElement('div');
+  el.id = 'app-loading';
+  el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f5f6f8;color:#5d6678;font:600 16px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;z-index:99990;';
+  el.innerHTML = '<div style="width:38px;height:38px;border:4px solid #d9deea;border-top-color:#2c4fd1;border-radius:50%;animation:appspin .8s linear infinite;"></div><div>Načítám data…</div><div style="font-weight:400;font-size:13px;">Chvilku strpení, appka funguje.</div>';
+  document.body.appendChild(el);
+}
+function hideAppLoading() {
+  if (typeof document === 'undefined') return;
+  var el = document.getElementById('app-loading');
+  if (el) el.remove();
+  var st = document.getElementById('app-loading-style');
+  if (st) st.remove();
+}
+async function loadAll() {
+  var prvni = !_firstLoadDone;
+  if (prvni) showAppLoading();
+  try { await loadAllInner(); }
+  finally { _firstLoadDone = true; hideAppLoading(); }
+}
+async function loadAllInner() {
+  await loadSettings(); // ať se hned na začátku načte případné admin nastavení (stanoviště, sazby, ...)
+  try {
+    var r = await db.from('schedule').select('*');
+    if (r.error) throw r.error;
+    SCHEDULE = r.data || [];
+    LOAD_OK.schedule = true;
+  } catch(e) { LOAD_OK.schedule = false; console.error('Načtení "schedule" selhalo:', e); }
+
+  try { var r2 = await db.from('ucty').select('*'); if (r2.error) throw r2.error; UCTY_POLOZKY = r2.data || []; LOAD_OK.ucty = true; } catch(e) { LOAD_OK.ucty = false; console.error('Načtení "ucty" selhalo:', e); }
+  try { var r3 = await db.from('uklid_log').select('*'); if (r3.error) throw r3.error; UKLID_LOG = r3.data || []; LOAD_OK.uklid_log = true; } catch(e) { LOAD_OK.uklid_log = false; console.error('Načtení "uklid_log" selhalo:', e); }
+  try { var r4 = await db.from('penalizace').select('*'); if (r4.error) throw r4.error; PENALIZACE = r4.data || []; LOAD_OK.penalizace = true; } catch(e) { LOAD_OK.penalizace = false; console.error('Načtení "penalizace" selhalo:', e); }
+  try { var r5 = await db.from('pracovni_dny').select('*'); if (r5.error) throw r5.error; PRACOVNI_DNY = r5.data || []; LOAD_OK.pracovni_dny = true; } catch(e) { LOAD_OK.pracovni_dny = false; console.error('Načtení "pracovni_dny" selhalo:', e); }
+
+  try {
+    var rw = await db.from('workers').select('*');
+    if (rw.error) throw rw.error;
+    WORKERS = rw.data || [];
+    LOAD_OK.workers = true;
+  } catch(e) { LOAD_OK.workers = false; console.error('Načtení "workers" selhalo:', e); }
+
+  try { var rv = await db.from('vyplaty').select('*'); VYPLATY = rv.data || []; } catch(e) { VYPLATY = []; }
+  try { var rtz = await db.from('trzby').select('*'); if (rtz.error) throw rtz.error; TRZBY = rtz.data || []; LOAD_OK.trzby = true; } catch(e) { LOAD_OK.trzby = false; console.error('Načtení "trzby" selhalo:', e); }
+  try { var rnk = await db.from('naklady').select('*'); if (rnk.error) throw rnk.error; NAKLADY = rnk.data || []; LOAD_OK.naklady = true; } catch(e) { LOAD_OK.naklady = false; console.error('Načtení "naklady" selhalo:', e); }
+
+  // (Varovný pruh se tu schválně NEukazuje - provozovny, pokladna a další se
+  // načítají až v loadVenues() níž a do té doby by pruh zbytečně strašil
+  // i při úplně normálním načítání. Vyhodnotí se až na konci loadVenues().)
+
+  try {
+    var rs = await db.from('sklad_produkty').select('*');
+    SKLAD_PRODUKTY = rs.data || [];
+    var chybiSklady = ['kram','vycep'].filter(function(s){
+      return !SKLAD_PRODUKTY.some(function(p){return p.sklad===s;});
+    });
+    if (chybiSklady.length) {
+      var doplnit = JSON.parse(JSON.stringify(SKLAD_PRODUKTY_SEED)).filter(function(p){return chybiSklady.indexOf(p.sklad)!==-1;});
+      SKLAD_PRODUKTY = SKLAD_PRODUKTY.concat(doplnit);
+      if (doplnit.length) await db.from('sklad_produkty').upsert(doplnit);
+    }
+  } catch(e) { SKLAD_PRODUKTY = JSON.parse(JSON.stringify(SKLAD_PRODUKTY_SEED)); }
+
+  try { var rp = await db.from('sklad_pohyby').select('*'); SKLAD_POHYBY = rp.data || []; } catch(e) { SKLAD_POHYBY = []; }
+  try { var ri = await db.from('sklad_inventury').select('*'); SKLAD_INVENTURY = ri.data || []; } catch(e) { SKLAD_INVENTURY = []; }
+  try { var rpr = await db.from('sklad_prodeje').select('*'); SKLAD_PRODEJE = rpr.data || []; } catch(e) { SKLAD_PRODEJE = []; }
+
+  await loadVenues();
+}
+
+// ===================== PODNIKY / PROVOZOVNY (Kosatka + Republika 24 + Anděl) =====================
+var BUSINESSES = [];
+var VENUES = [];
+var ADMIN_VENUES = [];
+var WORKER_VENUES = []; // {id, worker_id, venue_id} - brigádník může mít i vedlejší provozovny
+var WORKER_DOSTUPNOST = []; // {id, worker_id, venue_id, dny} - dostupnost zvlášť pro každou "zaklad" provozovnu
+var STANOVISTE_ZAKLAD = {}; // venue_id -> [stanoviste]
+
+// Provozovny, které se v appce nezobrazují jako samostatné (viz níže "Station").
+// Řádek zůstává v databázi nedotčený, jen se nenačítá do seznamu provozoven.
+var VENUE_SKRYTE_SLUGY = ['andel-station'];
+async function loadVenues() {
+  try { var rb = await db.from('businesses').select('*').order('poradi'); if (rb.error) throw rb.error; BUSINESSES = rb.data || []; LOAD_OK.businesses = true; } catch(e) { BUSINESSES = []; LOAD_OK.businesses = false; console.error('Načtení "businesses" selhalo:', e); }
+  try { var rv = await db.from('venues').select('*').order('poradi'); if (rv.error) throw rv.error; VENUES = (rv.data || []).filter(function(v){ return VENUE_SKRYTE_SLUGY.indexOf(v.slug)===-1; }); LOAD_OK.venues = true; } catch(e) { VENUES = []; LOAD_OK.venues = false; console.error('Načtení "venues" selhalo:', e); }
+  try { var rav = await db.from('admin_venues').select('*'); if (rav.error) throw rav.error; ADMIN_VENUES = rav.data || []; LOAD_OK.admin_venues = true; } catch(e) { ADMIN_VENUES = []; LOAD_OK.admin_venues = false; console.error('Načtení "admin_venues" selhalo:', e); }
+  try { var rwv = await db.from('worker_venues').select('*'); if (rwv.error) throw rwv.error; WORKER_VENUES = rwv.data || []; LOAD_OK.worker_venues = true; } catch(e) { WORKER_VENUES = []; LOAD_OK.worker_venues = false; console.error('Načtení "worker_venues" selhalo:', e); }
+  try { var rwd = await db.from('worker_dostupnost').select('*'); if (rwd.error) throw rwd.error; WORKER_DOSTUPNOST = rwd.data || []; LOAD_OK.worker_dostupnost = true; } catch(e) { WORKER_DOSTUPNOST = []; LOAD_OK.worker_dostupnost = false; console.error('Načtení "worker_dostupnost" selhalo:', e); }
+  try {
+    var rs = await db.from('stanoviste').select('*').order('poradi');
+    if (rs.error) throw rs.error;
+    STANOVISTE_ZAKLAD = {};
+    (rs.data||[]).forEach(function(s){
+      if (!STANOVISTE_ZAKLAD[s.venue_id]) STANOVISTE_ZAKLAD[s.venue_id]=[];
+      STANOVISTE_ZAKLAD[s.venue_id].push(s);
+    });
+    LOAD_OK.stanoviste = true;
+  } catch(e) { STANOVISTE_ZAKLAD = {}; LOAD_OK.stanoviste = false; console.error('Načtení "stanoviste" selhalo:', e); }
+
+  try { var rby = await db.from('byty').select('*').order('id'); if (rby.error) throw rby.error; BYTY = rby.data || []; LOAD_OK.byty = true; } catch(e) { BYTY = []; LOAD_OK.byty = false; console.error('Načtení "byty" selhalo:', e); }
+  try { var rbp = await db.from('byty_platby').select('*'); if (rbp.error) throw rbp.error; BYTY_PLATBY = rbp.data || []; LOAD_OK.byty_platby = true; } catch(e) { BYTY_PLATBY = []; LOAD_OK.byty_platby = false; console.error('Načtení "byty_platby" selhalo:', e); }
+  try { var rpk = await db.from('pokladna').select('*'); if (rpk.error) throw rpk.error; POKLADNA = rpk.data || []; LOAD_OK.pokladna = true; } catch(e) { POKLADNA = []; LOAD_OK.pokladna = false; console.error('Načtení "pokladna" selhalo:', e); }
+  try { var rno = await db.from('naklady_opakovane').select('*'); if (rno.error) throw rno.error; NAKLADY_OPAKOVANE = rno.data || []; LOAD_OK.naklady_opakovane = true; } catch(e) { NAKLADY_OPAKOVANE = []; LOAD_OK.naklady_opakovane = false; console.error('Načtení "naklady_opakovane" selhalo:', e); }
+  try { var rpu = await db.from('pokladna_uzaverky').select('*'); if (rpu.error) throw rpu.error; POKLADNA_UZAVERKY = rpu.data || []; LOAD_OK.pokladna_uzaverky = true; } catch(e) { POKLADNA_UZAVERKY = []; LOAD_OK.pokladna_uzaverky = false; console.error('Načtení "pokladna_uzaverky" selhalo:', e); }
+  try { var rz = await db.from('zalohy').select('*'); if (rz.error) throw rz.error; ZALOHY = rz.data || []; LOAD_OK.zalohy = true; } catch(e) { ZALOHY = []; LOAD_OK.zalohy = false; console.error('Načtení "zalohy" selhalo:', e); }
+
+  showLoadErrorBannerIfNeeded();
+  await ensureOpakovaneNaklady();
+}
+
+// ── Venue-scoped funkce pro nové "zaklad" podniky (Republika 24, Anděl) ──
+// Kosatka appka (app.html/admin.html) tyhle funkce nepoužívá, takže nemají
+// šanci nic v ní rozbít - jsou to čistě nové, přídavné funkce.
+
+function getMyShiftsVenue(workerId, venueId) {
+  return SCHEDULE.filter(function(s){return s.workerId===workerId && s.venue_id===venueId;});
+}
+// Minulé směny z rozpisu, ke kterým si brigádník ještě nezapsal (nebo nedopsal
+// do konce) čas příchodu/odchodu - použito na hlavním panelu jako připomínka
+// "dopiš si čas", ať mu to sedí ve výplatě.
+function getChybejiciCasyVenue(workerId, venueId) {
+  var today = todayStr();
+  var mel = {};
+  SCHEDULE.forEach(function(s){ if (s.workerId===workerId && s.venue_id===venueId && s.datum<today) mel[s.datum]=true; });
+  var ma = {};
+  PRACOVNI_DNY.forEach(function(p){ if (p.workerId===workerId && p.venue_id===venueId && p.prichod && p.odchod) ma[p.datum]=true; });
+  var chybi = Object.keys(mel).filter(function(d){ return !ma[d]; });
+  chybi.sort();
+  return chybi;
+}
+function getScheduleForVenue(venueId) {
+  return SCHEDULE.filter(function(s){return s.venue_id===venueId;});
+}
+// "Místa" na směně uvnitř jedné provozovny (rozpis). Anděl Station není
+// samostatná pobočka, ale jen další posezení u Café se společnou pokladnou -
+// v rozpisu Café se na ni proto jen přiřadí jeden člověk na den (směna dostane
+// mistoId 'station'), tržby a pokladna zůstávají jedny.
+var SMENA_MISTA_VENUE = {
+  'andel-cafe': [
+    { mistoId:'hlavni',  label:'Café',    ikona:'☕' },
+    { mistoId:'station', label:'Station', ikona:'🥐' }
+  ]
+};
+function getSmenaMistaForVenue(venue) {
+  return (venue && SMENA_MISTA_VENUE[venue.slug]) || null;
+}
+// Štítek místa směny (např. 'station' -> 'Station'); pro obyčejnou směnu (hlavni) null.
+function getSmenaMistoInfo(venue, mistoId) {
+  var mista = getSmenaMistaForVenue(venue);
+  if (!mista || !mistoId || mistoId==='hlavni') return null;
+  return mista.find(function(m){ return m.mistoId===mistoId; }) || null;
+}
+// Přiřadí směnu na dané místo (Station), nebo ji z něj zase sundá. Na Station
+// je vždy nejvýš jeden člověk za den - pokud tam už někdo je, vrací se jeho
+// směna v "nahrazeno" a ten člověk se vrátí na obyčejnou směnu v Café.
+async function setSmenaMisto(shiftId, mistoId) {
+  var s = SCHEDULE.find(function(x){return x.id===shiftId;});
+  if (!s) return { ok:false, error:'Směna nenalezena' };
+  var zmeny = [{ s:s, puvodni:s.mistoId }];
+  var nahrazeno = null;
+  if (mistoId && mistoId!=='hlavni') {
+    SCHEDULE.forEach(function(o){
+      if (o.id!==s.id && o.venue_id===s.venue_id && o.datum===s.datum && o.mistoId===mistoId) {
+        zmeny.push({ s:o, puvodni:o.mistoId }); o.mistoId = 'hlavni'; nahrazeno = o;
+      }
+    });
+  }
+  s.mistoId = mistoId || 'hlavni';
+  var res = await saveSchedule();
+  if (!res.ok) { zmeny.forEach(function(z){ z.s.mistoId = z.puvodni; }); return res; }
+  return { ok:true, row:s, nahrazeno:nahrazeno };
+}
+// Kdo je v daný den na Station (směna) - nebo null.
+function getStationSmena(venueId, datum) {
+  return SCHEDULE.find(function(s){ return s.venue_id===venueId && s.datum===datum && s.mistoId==='station'; }) || null;
+}
+async function addShiftVenue(venueId, workerId, stanovisteId, datum, poznamka) {
+  var existing = SCHEDULE.find(function(s){return s.venue_id===venueId && s.workerId===workerId && s.datum===datum;});
+  if (existing) return { ok:true, row:existing };
+  var row = { id:getNextId(SCHEDULE), workerId:workerId, datum:datum, mistoId:stanovisteId, venue_id:venueId, poznamka:poznamka||null };
+  SCHEDULE.push(row);
+  var res = await saveSchedule();
+  if (!res.ok) { SCHEDULE = SCHEDULE.filter(function(s){return s.id!==row.id;}); return res; }
+  return { ok:true, row:row };
+}
+// Poznámka ke směně - dopsaná dodatečně (např. "přines vlastní reproduktor", poznámky k Dvorku apod.)
+async function setShiftPoznamka(id, poznamka) {
+  var s = SCHEDULE.find(function(x){return x.id===id;});
+  if (!s) return { ok:false, error:'Směna nenalezena' };
+  s.poznamka = poznamka||null;
+  try {
+    var res = await db.from('schedule').update({ poznamka:s.poznamka }).eq('id', id);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  return { ok:true };
+}
+async function delShiftVenue(id) {
+  var predchozi = SCHEDULE;
+  SCHEDULE = SCHEDULE.filter(function(s){return s.id!==id;});
+  try {
+    var res = await db.from('schedule').delete().eq('id', id);
+    if (res.error) { SCHEDULE = predchozi; return { ok:false, error:res.error }; }
+  } catch(e) { SCHEDULE = predchozi; return { ok:false, error:e }; }
+  return { ok:true };
+}
+
+async function saveTimeVenue(workerId, venueId, datum, prichod, odchod) {
+  var pd = getPracovniDen(workerId, datum);
+  if (pd) { pd.prichod=prichod; pd.odchod=odchod; pd.venue_id=venueId; }
+  else { pd = {id:getNextId(PRACOVNI_DNY), workerId:workerId, datum:datum, prichod:prichod, odchod:odchod, obed:false, vecere:false, venue_id:venueId}; PRACOVNI_DNY.push(pd); }
+  return await savePracovniDny();
+}
+
+// Individuální sazba na brigádníkovi (workers.sazba - stejný sloupec, jaký
+// už používá Kosatka) má vždycky přednost před výchozí sazbou provozovny.
+function getSazbaVenue(workerId, venueId) {
+  var w = getWorkerById(workerId);
+  if (w && w.sazba != null && w.sazba !== '' && !isNaN(w.sazba) && Number(w.sazba) > 0) return Number(w.sazba);
+  var venue = getVenueById(venueId);
+  return (venue && venue.sazba_hodinova) || 180;
+}
+// Datum poslední zapsané výplaty brigádníka na téhle provozovně (nebo null,
+// pokud mu ještě nikdy nebylo vyplaceno) - viz getVydelekVenue níže.
+function getPosledniVyplataDatumVenue(venueId, workerId) {
+  var posledni = null;
+  VYPLATY.forEach(function(v){
+    if (v.venue_id===venueId && v.workerId===workerId && (!posledni || v.datum>posledni)) posledni = v.datum;
+  });
+  return posledni;
+}
+// Množina dní, které už byly u týhle provozovny/brigádníka explicitně
+// vyznačené jako vyplacené (VYPLATY.dny) - umožňuje to vyplatit jen
+// VYBRANÉ měsíce (v modálu "Vyplatit") a ostatní nechat dál "k výplatě",
+// místo aby se jakoukoliv výplatou automaticky vyrovnalo úplně všechno
+// až po dnešek. Staré výplaty (zapsané ještě před touhle funkcí) mají
+// dny:[] a vyrovnávaly VŽDY úplně všechno až do svého data - pro ty se
+// proto dole pořád používá i prostý datumový "cutoff" (legacyCutoff),
+// ať se zpětně "neotevřou" dny, co byly tehdy vyplacené.
+function getVyplacenDnyVenue(workerId, venueId) {
+  var set = {};
+  var legacyCutoff = null;
+  var maxPaidDay = null;
+  VYPLATY.forEach(function(v){
+    if (v.workerId!==workerId || v.venue_id!==venueId) return;
+    if (v.dny && v.dny.length) {
+      v.dny.forEach(function(d){ set[d]=true; if (!maxPaidDay || d>maxPaidDay) maxPaidDay = d; });
+    } else if (!legacyCutoff || v.datum>legacyCutoff) {
+      legacyCutoff = v.datum;
+    }
+  });
+  if (legacyCutoff && (!maxPaidDay || legacyCutoff>maxPaidDay)) maxPaidDay = legacyCutoff;
+  return { set:set, legacyCutoff:legacyCutoff, maxPaidDay:maxPaidDay };
+}
+// Jako getVydelekVenue, ale po jednotlivých (nevyplacených) dnech - používá se
+// v modálu "Vyplatit" na rozpad dlužné částky po měsících, ať je hned vidět,
+// kolik je za tenhle měsíc a kolik za předchozí, a ať jde vyplatit jen
+// vybrané měsíce (viz getVyplacenDnyVenue výš).
+function getNevyplaceneDnyVenue(workerId, venueId) {
+  var today = todayStr();
+  var sazba = getSazbaVenue(workerId, venueId);
+  var vyplaceno = getVyplacenDnyVenue(workerId, venueId);
+  var seen = {};
+  var out = [];
+  PRACOVNI_DNY.forEach(function(pd){
+    if (pd.workerId!==workerId || pd.venue_id!==venueId || pd.datum>today) return;
+    if (vyplaceno.legacyCutoff && pd.datum<=vyplaceno.legacyCutoff) return;
+    if (vyplaceno.set[pd.datum]) return;
+    if (seen[pd.datum]) return; seen[pd.datum]=true;
+    if (!pd.prichod || !pd.odchod) return;
+    var h = calcHodiny(pd.prichod, pd.odchod);
+    out.push({ datum:pd.datum, hodiny:roundH(h), hruby:Math.round(h*sazba) });
+  });
+  out.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
+  return out;
+}
+// DŮLEŽITÉ: hrubá mzda se počítá z nevyplacených dní (getNevyplaceneDnyVenue) -
+// tedy dnů, co ještě nejsou v žádné zapsané výplatě (viz výš). Díky tomu jde
+// vyplatit jen VYBRANÉ měsíce (v modálu "Vyplatit") a zbylé měsíce se dál
+// správně počítají jako dlužné, místo aby je jakákoliv výplata rovnou smazala.
+// Penalizace/zálohy se počítají od nejpozdějšího SKUTEČNĚ vyplaceného dne
+// (getVyplacenDnyVenue.maxPaidDay), ne od data, kdy se poslední výplata
+// zapsala (to je vždycky dnešek) - jinak by se vyplacením jen jednoho měsíce
+// tiše "odbavily" i penalizace/zálohy z měsíce, co ještě vyplacený nebyl.
+function getVydelekVenue(workerId, venueId) {
+  var ucty=0, pen=0, zalohy=0;
+  var sazba = getSazbaVenue(workerId, venueId);
+  var vyplaceno = getVyplacenDnyVenue(workerId, venueId);
+  var odDatumu = vyplaceno.maxPaidDay;
+  var dny = getNevyplaceneDnyVenue(workerId, venueId);
+  var hodiny = 0;
+  dny.forEach(function(d){ hodiny += d.hodiny; });
+  var hruby = Math.round(hodiny*sazba);
+  // Účty (dluh za odebrané zboží/nákupy) se NEODEČÍTAJÍ od výplaty - brigádník
+  // si je platí sám zvlášť v hotovosti (viz oznacitUcetZaplaceno). "ucty" se
+  // tady pořád počítá jen pro informativní zobrazení (uctyDluh), ne do "cisty".
+  UCTY_POLOZKY.forEach(function(p){ if(p.workerId===workerId && p.venue_id===venueId && !p.smazano) ucty+=p.castka; });
+  PENALIZACE.forEach(function(p){ if(p.workerId===workerId && p.venue_id===venueId && (!odDatumu || p.datum>odDatumu)) pen+=p.castka; });
+  ZALOHY.forEach(function(z){ if(z.workerId===workerId && z.venue_id===venueId && !z.smazano) zalohy+=z.castka; });
+  return { hodiny:roundH(hodiny), hruby:hruby, uctyDluh:ucty, penalizaceTotal:pen, zalohy:zalohy, cisty:hruby-pen-zalohy };
+}
+// Stejné jako getVydelekVenue (odpracované hodiny × sazba), ale jen za
+// konkrétní měsíc (nebo 'all' = celá sezóna) - pro Statistiky, ať se do
+// přehledu vybraného měsíce nemíchají hodiny/mzdy z jiných měsíců.
+function getVydelekVenueMonth(workerId, venueId, year, month) {
+  var hodiny=0;
+  var today = todayStr();
+  var sazba = getSazbaVenue(workerId, venueId);
+  var prefix = month==='all' ? String(year)+'-' : year+'-'+String(month).padStart(2,'0');
+  var seen = {};
+  PRACOVNI_DNY.forEach(function(pd){
+    if (pd.workerId!==workerId || pd.venue_id!==venueId || pd.datum>today) return;
+    if (pd.datum.indexOf(prefix)!==0) return;
+    if (seen[pd.datum]) return; seen[pd.datum]=true;
+    if (pd.prichod && pd.odchod) hodiny += calcHodiny(pd.prichod, pd.odchod);
+  });
+  return { hodiny:roundH(hodiny), hruby:Math.round(hodiny*sazba) };
+}
+
+// ===================== MĚSÍČNÍ PŘEHLED (hodiny, mzda, výplaty po měsících) =====================
+// Jedno místo, odkud čerpá brigádník ("Moje měsíce a výplaty"), admin (měsíce
+// v tabulce před tlačítkem Vyplatit, souhrn celkových výplat) i Excel: pro
+// každý měsíc odpracované hodiny, hrubá mzda, co z toho je už vyplacené a
+// které výplaty k němu patří. venueId = id provozovny; null = Kosatka (starší
+// model bez venue_id, sazba podle stanoviště).
+// Výplata se k měsíci přiřazuje podle "dny", které pokrývá (výplata přes víc
+// měsíců se rozdělí podle hrubé mzdy dnů v každém měsíci); stará výplata bez
+// "dny" (nebo záloha) patří do měsíce svého data.
+function mesicKlic(datum) { return String(datum||'').slice(0,7); }
+function mesicPopisek(key) {
+  var N = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+  var m = parseInt(String(key).slice(5,7),10);
+  return (N[m-1]||String(key))+' '+String(key).slice(0,4);
+}
+function getMesicniPrehled(workerId, venueId) {
+  var legacy = (venueId==null);
+  var kosatkaId = null;
+  if (legacy) { var kv = (typeof getVenueBySlug==='function') ? getVenueBySlug('kosatka') : null; kosatkaId = kv ? kv.id : null; }
+  var today = todayStr();
+  var curKey = mesicKlic(today);
+  var jeVyplacenyDen;
+  if (legacy) { var ps = getVyplacenDny(workerId); jeVyplacenyDen = function(d){ return !!ps[d]; }; }
+  else { var pv = getVyplacenDnyVenue(workerId, venueId); jeVyplacenyDen = function(d){ return !!pv.set[d] || !!(pv.legacyCutoff && d<=pv.legacyCutoff); }; }
+  var sazbaVenue = legacy ? null : getSazbaVenue(workerId, venueId);
+  var mesice = {}, poradi = [];
+  function mesic(key) {
+    if (!mesice[key]) {
+      mesice[key] = { key:key, label:mesicPopisek(key), aktualni:key===curKey, hodiny:0, hruby:0, dny:[], vyplacenoHodiny:0, vyplacenoHruby:0,
+        nevyplacenoHodiny:0, nevyplacenoHruby:0, penalizace:0, penalizaceItems:[], vyplaceno:0, vyplaty:[], stav:'nic',
+        zalohy:{ otevrene:0, odectene:0, celkem:0, items:[] }, ucty:{ otevrene:0, zVyplaty:0, zvlast:0, celkem:0, items:[] },
+        sazba:0, cista:0, poOdectuUctu:0 };
+      poradi.push(key);
+    }
+    return mesice[key];
+  }
+  var seen = {}, denHruby = {};
+  PRACOVNI_DNY.forEach(function(pd){
+    if (pd.workerId!==workerId || pd.datum>today) return;
+    if (!legacy && pd.venue_id!==venueId) return;
+    if (!pd.prichod || !pd.odchod || seen[pd.datum]) return;
+    seen[pd.datum] = true;
+    var h = calcHodiny(pd.prichod, pd.odchod);
+    var hruby = legacy ? h*getSazba(getMistoProDen(workerId, pd.datum), workerId) : h*sazbaVenue;
+    hruby = Math.round(hruby);
+    var m = mesic(mesicKlic(pd.datum));
+    var zaplaceno = jeVyplacenyDen(pd.datum);
+    m.hodiny += h; m.hruby += hruby;
+    if (zaplaceno) { m.vyplacenoHodiny += h; m.vyplacenoHruby += hruby; } else { m.nevyplacenoHodiny += h; m.nevyplacenoHruby += hruby; }
+    m.dny.push({ datum:pd.datum, hodiny:roundH(h), hruby:hruby, vyplaceno:zaplaceno });
+    denHruby[pd.datum] = hruby;
+  });
+  var vyplaty = VYPLATY.filter(function(v){
+    if (v.workerId!==workerId) return false;
+    return legacy ? (!v.venue_id || v.venue_id===kosatkaId) : v.venue_id===venueId;
+  }).slice().sort(function(a,b){ return (b.datum||'').localeCompare(a.datum||'') || b.id-a.id; });
+  var vyplacenoCelkem = 0;
+  vyplaty.forEach(function(v){
+    vyplacenoCelkem += v.castka;
+    var dny = (v.dny||[]).filter(Boolean);
+    var podily = {};
+    if (dny.length) {
+      var soucet = 0; dny.forEach(function(d){ soucet += (denHruby[d]||0); });
+      dny.forEach(function(d){
+        var k = mesicKlic(d);
+        podily[k] = (podily[k]||0) + (soucet>0 ? v.castka*(denHruby[d]||0)/soucet : v.castka/dny.length);
+      });
+    } else { podily[mesicKlic(v.datum)] = v.castka; }
+    Object.keys(podily).forEach(function(k){
+      var m = mesic(k), podil = Math.round(podily[k]);
+      m.vyplaceno += podil;
+      m.vyplaty.push({ id:v.id, datum:v.datum, castka:v.castka, podil:podil, poznamka:v.poznamka||'', pocetDni:dny.length, rozdeleno:Object.keys(podily).length>1 });
+    });
+  });
+  PENALIZACE.forEach(function(pn){
+    if (pn.workerId!==workerId) return;
+    if (legacy ? (pn.venue_id && pn.venue_id!==kosatkaId) : pn.venue_id!==venueId) return;
+    var pm = mesic(mesicKlic(pn.datum));
+    pm.penalizace += pn.castka;
+    pm.penalizaceItems.push({ datum:pn.datum, castka:pn.castka, duvod:pn.duvod||'', poznamka:pn.poznamka||'' });
+  });
+  // Účty (dluh za odebrané zboží): otevřené, odečtené z výplaty (viz "Odečíst účty z
+  // výplaty" při výplatě - poznáme podle pokladního zápisu "(účty #id,id)", u Kosatky
+  // podle poznámky výplaty a data), nebo zaplacené zvlášť/skryté.
+  var odecteneUcty = {};
+  POKLADNA.forEach(function(pk){
+    var mm = /\(účty #([\d,]+)\)/.exec(pk.popis||'');
+    if (mm) mm[1].split(',').forEach(function(x){ odecteneUcty[parseInt(x,10)] = true; });
+  });
+  if (legacy) {
+    vyplaty.forEach(function(v){
+      if (!/odečteno za účty/.test(v.poznamka||'')) return;
+      UCTY_POLOZKY.forEach(function(u){
+        if (u.workerId!==workerId || u.venue_id || !u.smazano || !u.smazano_at) return;
+        var rozdil = Math.abs(new Date(String(u.smazano_at).slice(0,10)+'T00:00:00') - new Date(v.datum+'T00:00:00'))/86400000;
+        if (rozdil<=1) odecteneUcty[u.id] = true;
+      });
+    });
+  }
+  UCTY_POLOZKY.forEach(function(u){
+    if (u.workerId!==workerId) return;
+    if (legacy ? !!u.venue_id : u.venue_id!==venueId) return;
+    var um = mesic(mesicKlic(u.datum));
+    var stav = !u.smazano ? 'otevrene' : (odecteneUcty[u.id] ? 'zVyplaty' : 'zvlast');
+    um.ucty[stav] += u.castka; um.ucty.celkem += u.castka;
+    um.ucty.items.push({ datum:u.datum, popis:u.popis||'Účet', castka:u.castka, stav:stav });
+  });
+  // Zálohy: otevřené, nebo odečtené při výplatě (smazané zálohy bez pokladního zápisu
+  // = omylem zapsané a smazané, ty se nepočítají).
+  if (!legacy) {
+    ZALOHY.forEach(function(z){
+      if (z.workerId!==workerId || z.venue_id!==venueId) return;
+      var mark = '(záloha #'+z.id+')';
+      var maPokladnu = POKLADNA.some(function(pk){ return (pk.popis||'').indexOf(mark)!==-1; });
+      if (z.smazano && !maPokladnu) return;
+      var zm = mesic(mesicKlic(z.datum));
+      zm.zalohy[z.smazano ? 'odectene' : 'otevrene'] += z.castka; zm.zalohy.celkem += z.castka;
+      zm.zalohy.items.push({ datum:z.datum, castka:z.castka, poznamka:z.poznamka||'', stav:z.smazano ? 'odectena' : 'otevrena' });
+    });
+  }
+  var out = poradi.sort().reverse().map(function(k){
+    var m = mesice[k];
+    m.dny.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
+    m.hodiny = roundH(m.hodiny); m.vyplacenoHodiny = roundH(m.vyplacenoHodiny); m.nevyplacenoHodiny = roundH(m.nevyplacenoHodiny);
+    m.penalizaceItems.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
+    m.ucty.items.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
+    m.zalohy.items.sort(function(a,b){ return a.datum.localeCompare(b.datum); });
+    m.sazba = m.hodiny ? Math.round(m.hruby/m.hodiny) : 0;
+    m.cista = m.hruby - m.penalizace - m.zalohy.celkem;
+    m.poOdectuUctu = m.cista - m.ucty.otevrene;
+    if (!m.dny.length) m.stav = m.vyplaceno ? 'vyplaceno' : 'nic';
+    else if (!m.nevyplacenoHruby && !m.nevyplacenoHodiny) m.stav = 'vyplaceno';
+    else if (!m.vyplacenoHodiny) m.stav = 'ceka';
+    else m.stav = 'castecne';
+    return m;
+  });
+  var celkem = { hodiny:0, hruby:0, vyplaceno:vyplacenoCelkem, nevyplacenoHruby:0, nevyplacenoHodiny:0, penalizace:0, zalohy:0, uctyOtevrene:0, cista:0 };
+  out.forEach(function(m){ celkem.zalohy += m.zalohy.celkem; celkem.uctyOtevrene += m.ucty.otevrene; celkem.cista += m.cista; celkem.hodiny += m.hodiny; celkem.hruby += m.hruby; celkem.nevyplacenoHruby += m.nevyplacenoHruby; celkem.nevyplacenoHodiny += m.nevyplacenoHodiny; celkem.penalizace += m.penalizace; });
+  celkem.hodiny = roundH(celkem.hodiny); celkem.nevyplacenoHodiny = roundH(celkem.nevyplacenoHodiny);
+  return { mesice:out, celkem:celkem, vyplaty:vyplaty };
+}
+// Souhrn za CELOU provozovnu po měsících (venueId null = Kosatka) - součet přes
+// všechny brigádníky; "radky" nese i rozpad po brigádnících pro tabulku.
+function getMesicniSouhrn(workerIds, venueId) {
+  var mapa = {}, klice = [], celkem = { hodiny:0, hruby:0, vyplaceno:0, nevyplacenoHruby:0, penalizace:0, zalohy:0, uctyOtevrene:0, cista:0 };
+  workerIds.forEach(function(wid){
+    var mp = getMesicniPrehled(wid, venueId);
+    celkem.vyplaceno += mp.celkem.vyplaceno;
+    mp.mesice.forEach(function(m){
+      if (!mapa[m.key]) { mapa[m.key] = { key:m.key, label:m.label, aktualni:m.aktualni, brigadniku:0, hodiny:0, hruby:0, vyplaceno:0, nevyplacenoHruby:0, penalizace:0, zalohy:0, uctyOtevrene:0, cista:0 }; klice.push(m.key); }
+      var r = mapa[m.key];
+      if (m.dny.length || m.vyplaceno) r.brigadniku++;
+      r.hodiny += m.hodiny; r.hruby += m.hruby; r.vyplaceno += m.vyplaceno; r.nevyplacenoHruby += m.nevyplacenoHruby; r.penalizace += m.penalizace;
+      r.zalohy += m.zalohy.celkem; r.uctyOtevrene += m.ucty.otevrene; r.cista += m.cista;
+      celkem.zalohy += m.zalohy.celkem; celkem.uctyOtevrene += m.ucty.otevrene; celkem.cista += m.cista;
+      celkem.hodiny += m.hodiny; celkem.hruby += m.hruby; celkem.nevyplacenoHruby += m.nevyplacenoHruby; celkem.penalizace += m.penalizace;
+    });
+  });
+  var radky = klice.sort().reverse().map(function(k){ var r = mapa[k]; r.hodiny = roundH(r.hodiny); return r; });
+  celkem.hodiny = roundH(celkem.hodiny);
+  return { radky:radky, celkem:celkem };
+}
+
+async function addUcetPolozkaVenue(workerId, venueId, stanovisteId, popis, castka) {
+  var row = { id:getNextId(UCTY_POLOZKY), workerId:workerId, datum:todayStr(), mistoId:stanovisteId, popis:popis, castka:castka, smazano:false, produktId:null, mnozstvi:null, venue_id:venueId };
+  try {
+    var res = await db.from('ucty').upsert([row]);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  UCTY_POLOZKY.push(row);
+  return { ok:true, row:row };
+}
+// Účet, co rovnou zapisuje ADMIN za brigádníka (např. si tady udělal účet a
+// zaplatí ho až jindy) - na rozdíl od addUcetPolozkaVenue (to je brigádníkovo
+// vlastní zapsání nákupu s 50% slevou) tady jde o libovolné datum a přesnou
+// částku, kterou má brigádník doplatit, beze slevy.
+async function addUcetPolozkaAdmin(workerId, venueId, datum, popis, castka) {
+  var row = { id:getNextId(UCTY_POLOZKY), workerId:workerId, datum:datum||todayStr(), mistoId:null, popis:popis||'Účet', castka:castka, smazano:false, produktId:null, mnozstvi:null, venue_id:venueId };
+  try {
+    var res = await db.from('ucty').upsert([row]);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  UCTY_POLOZKY.push(row);
+  return { ok:true, row:row };
+}
+// ── PENALIZACE (venue-scoped) ──
+function getPenalizaceForVenue(venueId) {
+  return PENALIZACE.filter(function(p){return p.venue_id===venueId;});
+}
+async function addPenalizaceVenue(venueId, workerId, duvod, castka, poznamka) {
+  var row = { id:getNextId(PENALIZACE), workerId:workerId, duvod:duvod, castka:castka, poznamka:poznamka||'', datum:todayStr(), venue_id:venueId };
+  PENALIZACE.push(row);
+  var res = await savePenalizace();
+  if (!res.ok) { PENALIZACE = PENALIZACE.filter(function(p){return p.id!==row.id;}); return res; }
+  return { ok:true, row:row };
+}
+
+// ── ÚKLID (venue-scoped, obecná denní rotace úklidu provozovny) ──
+function getUklidLogForVenue(venueId) {
+  return UKLID_LOG.filter(function(l){return l.venue_id===venueId;});
+}
+async function addUklidVenue(venueId, workerId) {
+  var now = new Date();
+  var cas = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  var predchozi = UKLID_LOG.filter(function(l){return l.datum===todayStr()&&l.workerId===workerId&&l.venue_id===venueId;});
+  UKLID_LOG = UKLID_LOG.filter(function(l){return !(l.datum===todayStr()&&l.workerId===workerId&&l.venue_id===venueId);});
+  var row = { id:getNextId(UKLID_LOG), datum:todayStr(), workerId:workerId, cas:cas, venue_id:venueId, vytrit:true };
+  UKLID_LOG.push(row);
+  var res = await saveUklidLog();
+  if (!res.ok) { UKLID_LOG = UKLID_LOG.filter(function(l){return l.id!==row.id;}).concat(predchozi); return res; }
+  return { ok:true, row:row };
+}
+
+// ── VÝPLATY (venue-scoped) ──
+function getVyplatyForVenueWorker(venueId, workerId) {
+  return VYPLATY.filter(function(v){return v.venue_id===venueId && v.workerId===workerId;});
+}
+function getVyplacenoVenue(venueId, workerId) {
+  var total=0; VYPLATY.forEach(function(v){ if(v.venue_id===venueId && v.workerId===workerId) total+=v.castka; });
+  return total;
+}
+async function addVyplataVenue(venueId, workerId, castka, poznamka, dny, adminId, opts) {
+  // Pozn.: "datum" je pořád datum, kdy se výplata doopravdy zapsala (dnešek) -
+  // podle něj se výplata řadí do měsíčních statistik (Vyplacené mzdy) a
+  // pokladní knihy, protože peníze z pokladny reálně odchází dnes. Který
+  // konkrétní den/měsíc je tím vyplacený (pro "Zbývá" příště) určuje "dny" -
+  // viz getNevyplaceneDnyVenue/getVyplacenDnyVenue výš.
+  // Volitelné (opts.odecistUcty): z výplaty se odečtou otevřené účty brigádníka
+  // - "castka" zůstává celá vyplacená mzda (ať sedí "Zbývá"), ale účty se
+  // označí jako zaplacené a fyzicky se vyplatí jen castka minus účty.
+  var odecet = (opts && opts.odecistUcty) ? planUctyOdecetVenue(workerId, venueId, castka) : { polozky:[], soucet:0 };
+  var poznamkaFinal = poznamka||'';
+  if (odecet.polozky.length) poznamkaFinal = (poznamkaFinal ? poznamkaFinal+' · ' : '')+'z toho odečteno za účty: '+odecet.soucet+' Kč';
+  var row = { id:getNextId(VYPLATY), workerId:workerId, datum:todayStr(), castka:castka, poznamka:poznamkaFinal, dny:dny||[], venue_id:venueId };
+  var uctyRes = await settleUctyPolozky(odecet.polozky, adminId);
+  if (!uctyRes.ok) return uctyRes;
+  VYPLATY.push(row);
+  var res = await saveVyplaty();
+  if (!res.ok) {
+    VYPLATY = VYPLATY.filter(function(v){return v.id!==row.id;});
+    if (odecet.polozky.length) { try { await unsettleUctyPolozky(odecet.polozky); } catch(e) {} }
+    return res;
+  }
+  // Výplata jde z hotovostní pokladny (safu) ven - propiš ji tam automaticky
+  // jako výdaj, ať je v pokladní knize vidět úplně každý pohyb peněz na
+  // podniku (příjmy i výdaje), ne jen tržby. Marker "(výplata #ID)" v popisu
+  // spojuje pokladní zápis s touhle výplatou - viz updateVyplata/delVyplata,
+  // které stejný marker hledají, aby oprava/smazání výplaty opravily/smazaly
+  // i odpovídající zápis v pokladně.
+  var w = getWorkerById(workerId);
+  try { await addPokladnaZapis(venueId, 'vydaj', castka, 'Výplata mzdy – '+(w?w.jmeno:'?')+' (výplata #'+row.id+')', adminId, 'hotovost'); } catch(e) {}
+  // Odečtené účty: brigádník je zaplatil "z výplaty" - do pokladny se propíšou
+  // jako příjem (stejně jako ruční "Zaplaceno"), takže čistý pohyb hotovosti =
+  // mzda minus účty. Marker "(výplata #ID)" zajistí smazání spolu s výplatou,
+  // "(účty #id,id)" umožní při smazání výplaty účty zase otevřít (delVyplata).
+  if (odecet.polozky.length) {
+    var ids = odecet.polozky.map(function(p){return p.id;}).join(',');
+    try { await addPokladnaZapis(venueId, 'prijem', odecet.soucet, 'Zaplacený účet (odečteno z výplaty) – '+(w?w.jmeno:'?')+' (výplata #'+row.id+') (účty #'+ids+')', adminId, 'hotovost'); } catch(e) {}
+  }
+  // Účty (dluh za odebrané zboží) se výplatou NEVYROVNÁVAJÍ - brigádník si je
+  // platí sám zvlášť v hotovosti (viz oznacitUcetZaplaceno). Výplata je tedy
+  // čistě hrubá mzda minus penalizace a zálohy (viz getVydelekVenue), účet
+  // zůstává po výplatě nedotčený a dál se počítá jako otevřený, dokud ho
+  // brigádník sám nezaplatí.
+  // Stejná logika jako u účtů platí i pro zálohy - "cisty" byl už snížený o
+  // nevyrovnané zálohy (viz getVydelekVenue), takže se výplatou fakticky
+  // vyrovnaly a je čas je smazat (soft-delete), ať se od dalšího výplatního
+  // období počítá zase od nuly.
+  try { await clearZalohyForWorkerVenue(venueId, workerId, adminId); } catch(e) {}
+  return { ok:true, row:row, odecteno:odecet.soucet, uctyPolozek:odecet.polozky.length };
+}
+
+// ── ZÁLOHY (venue-scoped) - peníze vyplacené brigádníkovi předem, které se
+// odečtou od jeho příští celkové výplaty (viz "zalohy" v getVydelekVenue). ──
+function getZalohyForWorkerVenue(workerId, venueId) {
+  return ZALOHY.filter(function(z){ return z.workerId===workerId && z.venue_id===venueId && !z.smazano; })
+    .sort(function(a,b){ return b.datum.localeCompare(a.datum) || b.id-a.id; });
+}
+async function addZalohaVenue(venueId, workerId, castka, poznamka, adminId, datum) {
+  var row = { id:getNextId(ZALOHY), workerId:workerId, venue_id:venueId, datum:datum||todayStr(), castka:Math.abs(castka), poznamka:poznamka||'', admin_id:adminId||null, smazano:false };
+  var res = await dbUpsert('zalohy', [row]);
+  if (!res.ok) return res;
+  ZALOHY.push(row);
+  // Záloha je hotovost, kterou brigádník dostal HNED (ne až u výplaty) - propiš
+  // ji do pokladny jako výdaj stejně jako běžnou výplatu, ať je v pokladní
+  // knize vidět každý pohyb peněz. Marker "(záloha #ID)" spojuje zápis s touhle
+  // zálohou pro pozdější smazání (viz deleteZalohaAdmin).
+  var w = getWorkerById(workerId);
+  try { await addPokladnaZapis(venueId, 'vydaj', row.castka, 'Záloha – '+(w?w.jmeno:'?')+' (záloha #'+row.id+')', adminId, 'hotovost', row.datum); } catch(e) {}
+  return { ok:true, row:row };
+}
+// Smazání JEDNÉ zálohy - pro opravu omylem zapsané částky (peníze se tím
+// vrátí zpátky do "Zbývá", pokladní zápis se smaže taky).
+async function deleteZalohaAdmin(id, adminId) {
+  var z = ZALOHY.find(function(x){ return x.id===id; });
+  if (!z) return { ok:false, error:'Záloha nenalezena' };
+  var puvodni = { smazano:z.smazano, smazano_at:z.smazano_at, smazano_by:z.smazano_by };
+  z.smazano = true; z.smazano_at = new Date().toISOString(); z.smazano_by = adminId||null;
+  var res = await dbUpsert('zalohy', [z]);
+  if (!res.ok) { Object.assign(z, puvodni); return res; }
+  var marker = '(záloha #'+id+')';
+  var pk = POKLADNA.find(function(p){ return (p.popis||'').indexOf(marker)!==-1; });
+  if (pk) { try { await deletePokladnaZapisAdmin(pk.id); } catch(e) {} }
+  return { ok:true };
+}
+// Hromadné vyrovnání VŠECH nevyrovnaných záloh brigádníka po výplatě - viz addVyplataVenue.
+async function clearZalohyForWorkerVenue(venueId, workerId, adminId) {
+  var rows = ZALOHY.filter(function(z){ return z.workerId===workerId && z.venue_id===venueId && !z.smazano; });
+  if (!rows.length) return { ok:true };
+  var now = new Date().toISOString();
+  rows.forEach(function(z){ z.smazano=true; z.smazano_at=now; z.smazano_by=adminId||null; });
+  var res = await dbUpsert('zalohy', rows);
+  if (!res.ok) { rows.forEach(function(z){ z.smazano=false; z.smazano_at=null; z.smazano_by=null; }); }
+  return res;
+}
+
+// ── JÍDLO (venue-scoped, znovupoužívá pracovni_dny jako Kosatka) ──
+function getJidloForVenueDate(venueId, datum) {
+  return getWorkersForVenue(venueId).map(function(w){
+    var pd = getPracovniDen(w.id, datum);
+    return { worker:w, obed: pd?!!pd.obed:false, vecere: pd?!!pd.vecere:false };
+  });
+}
+async function saveMealVenue(workerId, venueId, datum, type) {
+  var pd = getPracovniDen(workerId, datum);
+  if (pd) { pd[type]=true; pd.venue_id=venueId; }
+  else { pd = {id:getNextId(PRACOVNI_DNY), workerId:workerId, datum:datum, prichod:null, odchod:null, obed:false, vecere:false, venue_id:venueId}; pd[type]=true; PRACOVNI_DNY.push(pd); }
+  return await savePracovniDny();
+}
+
+// ── OBJEDNÁVKY (venue-scoped) - appka pro Kosatku sahá na tuhle tabulku
+// přímo (raw db.from), tyhle funkce jsou přídavné wrappery pro nové provozovny.
+async function addObjednavkaVenue(venueId, workerId, stanoviste, polozka, mnozstvi, poznamka) {
+  var row = { workerId:workerId, datum:todayStr(), stanoviste:stanoviste, polozka:polozka, mnozstvi:mnozstvi, poznamka:poznamka||null, splneno:false, venue_id:venueId };
+  try {
+    var res = await db.from('objednavky').insert(row).select();
+    if (res.error) return { ok:false, error:res.error };
+    return { ok:true, row: res.data ? res.data[0] : row };
+  } catch(e) { return { ok:false, error:e }; }
+}
+async function getObjednavkyForVenue(venueId) {
+  try {
+    var r = await db.from('objednavky').select('*').eq('venue_id', venueId).order('created_at', { ascending:false });
+    return r.data || [];
+  } catch(e) { return []; }
+}
+async function getObjednavkyForVenueWorker(venueId, workerId) {
+  try {
+    var r = await db.from('objednavky').select('*').eq('venue_id', venueId).eq('workerId', workerId).order('created_at', { ascending:false });
+    return r.data || [];
+  } catch(e) { return []; }
+}
+async function setObjednavkaSplneno(id, splneno) {
+  try {
+    var res = await db.from('objednavky').update({ splneno:splneno }).eq('id', id);
+    if (res.error) return { ok:false, error:res.error };
+    return { ok:true };
+  } catch(e) { return { ok:false, error:e }; }
+}
+
+function getWorkersForVenue(venueId) {
+  var secondaryIds = WORKER_VENUES.filter(function(wv){return wv.venue_id===venueId;}).map(function(wv){return wv.worker_id;});
+  return WORKERS.filter(function(w){return w.role==='user' && w.aktivni!==false && (w.venue_id===venueId || secondaryIds.indexOf(w.id)!==-1);});
+}
+// ── Editace brigádníka z Hlavního panelu (kód/PIN, domovská provozovna, odebrání) ──
+async function updateWorkerPin(workerId, novyPin) {
+  try {
+    var res = await db.from('workers').update({ pin:novyPin }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var w = getWorkerById(workerId); if (w) w.pin = novyPin;
+  return { ok:true };
+}
+async function updateWorkerHomeVenue(workerId, venueId) {
+  try {
+    var res = await db.from('workers').update({ venue_id:venueId }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var w = getWorkerById(workerId); if (w) w.venue_id = venueId;
+  return { ok:true };
+}
+async function updateWorkerJmeno(workerId, jmeno) {
+  try {
+    var res = await db.from('workers').update({ jmeno:jmeno }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var w = getWorkerById(workerId); if (w) w.jmeno = jmeno;
+  return { ok:true };
+}
+// Individuální hodinová sazba brigádníka (workers.sazba) - přebíjí sazbu
+// stanoviště/provozovny, viz getSazbaVenue výš. null/prázdné = zpátky na výchozí sazbu.
+async function updateWorkerSazba(workerId, sazba) {
+  var hodnota = (sazba===null || sazba==='' || isNaN(sazba)) ? null : Number(sazba);
+  try {
+    var res = await db.from('workers').update({ sazba:hodnota }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var w = getWorkerById(workerId); if (w) w.sazba = hodnota;
+  return { ok:true };
+}
+// "Odebrání" brigádníka = měkké smazání (aktivni=false). Historie směn/mezd/tržeb
+// zůstává zachovaná pro účetnictví, jen zmizí ze seznamů aktivních lidí a nejde se jím přihlásit.
+async function removeWorkerSoft(workerId) {
+  try {
+    var res = await db.from('workers').update({ aktivni:false }).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  var w = getWorkerById(workerId); if (w) w.aktivni = false;
+  return { ok:true };
+}
+function getPendingWorkers() {
+  return WORKERS.filter(function(w){return w.schvaleno===false;});
+}
+async function approveWorker(workerId, venueId, role) {
+  var w = WORKERS.find(function(x){return x.id===workerId;});
+  if (!w) return { ok:false, error:'Brigádník nenalezen' };
+  var updated = { id:w.id, venue_id:venueId, role:role||'user', schvaleno:true };
+  try {
+    var res = await db.from('workers').update(updated).eq('id', workerId);
+    if (res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  Object.assign(w, updated);
+  // Správce se rovnou přiřadí i k té provozovně v admin_venues, ať se nemusí
+  // ještě jednou nastavovat v záložce Podniky.
+  if (updated.role === 'spravce' && venueId) {
+    await setAdminVenues(workerId, [venueId]);
+  }
+  // DŮLEŽITÉ: pokud se registroval e-mailem, Supabase Auth mu bez potvrzení e-mailu
+  // nedovolí přihlásit se, i když je tady "schváleno" - proto e-mail rovnou potvrdíme
+  // (přes edge funkci se service_role, to z prohlížeče s anon klíčem nejde).
+  if (w.auth_user_id) {
+    var confirmRes = await callAdminFn('confirm_email', w.auth_user_id);
+    if (!confirmRes.ok) console.error('Potvrzení e-mailu selhalo:', confirmRes.error);
+  }
+  return { ok:true };
+}
+async function setAdminVenues(workerId, venueIds) {
+  try {
+    await db.from('admin_venues').delete().eq('worker_id', workerId);
+    var rows = venueIds.map(function(vid){ return { worker_id:workerId, venue_id:vid }; });
+    if (rows.length) { var res = await db.from('admin_venues').insert(rows); if (res.error) return { ok:false, error:res.error }; }
+    ADMIN_VENUES = ADMIN_VENUES.filter(function(av){return av.worker_id!==workerId;}).concat(rows);
+    return { ok:true };
+  } catch(e) { return { ok:false, error:e }; }
+}
+
+function getUctyForWorkerVenue(workerId, venueId) {
+  return UCTY_POLOZKY.filter(function(p){return p.workerId===workerId && p.venue_id===venueId && !p.smazano;});
+}
+
+// Pro provozovny, kde se tržba za den rozpadá na víc samostatných "míst" (Anděl
+// Music Club: bar + vstupy + šatna, každé se svojí hotovostí/kartou) - jinak
+// appka pořád používá jen jedno obecné místo "hlavni" jako dřív. Klíčované
+// podle slugu provozovny, stejně jako ANDEL_SMENY_PRESETY_VENUE. "mistoId" u
+// každé položky je to, co se ukládá do trzby.mistoId a propisuje se přes
+// syncPokladnaZTrzby do pokladny - při přidání nového místa sem appka
+// automaticky začne nabízet zápis pro něj, nic dalšího se měnit nemusí
+// (getZiskVenueMonth/getTrzbyForVenueMonth apod. sčítají přes VŠECHNA místa
+// dané provozovny bez ohledu na mistoId).
+var TRZBA_MISTA_VENUE = {
+  'andel-music-club': [
+    { mistoId:'hlavni', label:'Bar' },
+    { mistoId:'vstup',  label:'Vstupy' },
+    { mistoId:'satna',  label:'Šatna' }
+  ]
+};
+function getTrzbaMistaForVenue(venue) {
+  if (!venue) return [{ mistoId:'hlavni', label:null }];
+  return TRZBA_MISTA_VENUE[venue.slug] || [{ mistoId:'hlavni', label:null }];
+}
+
+function getTrzbaVenue(venueId, stanovisteId, datum) {
+  return TRZBY.find(function(t){return t.venue_id===venueId && t.mistoId===stanovisteId && t.datum===datum;}) || null;
+}
+async function submitTrzbaVenue(venueId, stanovisteId, datum, castka, workerId, poznamka, hotove, kartou) {
+  var blocked = requireLoadOk('trzby'); if (blocked) return blocked;
+  var existing = getTrzbaVenue(venueId, stanovisteId, datum);
+  var row;
+  if (existing) {
+    existing.castka=castka; existing.workerId=workerId; existing.poznamka=poznamka||'';
+    if (hotove!==undefined) existing.hotove = hotove;
+    if (kartou!==undefined) existing.kartou = kartou;
+    await db.from('trzby').upsert([existing]);
+    row = existing;
+  } else {
+    row = { id:getNextId(TRZBY), mistoId:stanovisteId, datum:datum, castka:castka, workerId:workerId||null, poznamka:poznamka||'', venue_id:venueId, hotove:hotove!==undefined?hotove:null, kartou:kartou!==undefined?kartou:null };
+    TRZBY.push(row);
+    await db.from('trzby').upsert([row]);
+  }
+  if (hotove!==undefined && hotove!==null) {
+    await syncPokladnaZTrzby(venueId, stanovisteId, datum, hotove, workerId, 'hotovost');
+  }
+  if (kartou!==undefined && kartou!==null) {
+    await syncPokladnaZTrzby(venueId, stanovisteId, datum, kartou, workerId, 'online');
+  }
+  return row;
+}
+
+// ===================== NÁKLADY (Makro, pivo, zásoby...) =====================
+// Pevné kategorie pro pravidelné/opakující se náklady - když se faktura při
+// zápisu zařadí pod jednu z nich, propíše se to rovnou do Statistik (viz
+// getNakladyKategorieSoucty), ať admin hned vidí, kolik ho co stálo tenhle
+// měsíc (internet, elektřina...), bez ručního součítání.
+var NAKLAD_KATEGORIE = [
+  { key:'mzdy',     label:'Mzdy' },
+  { key:'odvody',   label:'Odvody' },
+  { key:'teplo',    label:'Teplo' },
+  { key:'elektro',  label:'Elektřina' },
+  { key:'telefon',  label:'Telefon' },
+  { key:'internet', label:'Internet' },
+  { key:'dph',      label:'DPH' }
+];
+function getNakladKategorieLabel(key) {
+  var k = NAKLAD_KATEGORIE.find(function(x){ return x.key===key; });
+  return k ? k.label : null;
+}
+function getNakladyForVenue(venueId) {
+  return NAKLADY.filter(function(n){ return n.venue_id===venueId; }).sort(function(a,b){ return a.datum<b.datum?1:-1; });
+}
+function getNakladyForVenueMonth(venueId, year, month) {
+  if (month === 'all') return getNakladyForVenue(venueId).filter(function(n){ return (n.datum||'').indexOf(String(year)+'-')===0; });
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  return getNakladyForVenue(venueId).filter(function(n){ return (n.datum||'').indexOf(prefix)===0; });
+}
+// Součet nákladů podle kategorie za daný měsíc (nebo 'all' = celá sezóna) - pro Statistiky.
+function getNakladyKategorieSoucty(venueId, year, month) {
+  var rows = getNakladyForVenueMonth(venueId, year, month);
+  var soucty = {};
+  NAKLAD_KATEGORIE.forEach(function(k){ soucty[k.key] = 0; });
+  rows.forEach(function(n){ if (n.kategorie && soucty.hasOwnProperty(n.kategorie)) soucty[n.kategorie] += (n.castka||0); });
+  return soucty;
+}
+async function submitNaklad(venueId, workerId, datum, popis, castka, kategorie) {
+  var blocked = requireLoadOk('naklady'); if (blocked) return blocked;
+  var row = { id:getNextId(NAKLADY), venue_id:venueId, workerId:workerId||null, datum:datum, popis:popis, castka:castka, kategorie:kategorie||null };
+  NAKLADY.push(row);
+  var res = await dbUpsert('naklady', [row]);
+  if (!res.ok) { NAKLADY = NAKLADY.filter(function(n){return n.id!==row.id;}); }
+  return res;
+}
+async function removeNaklad(id) {
+  var res = await db.from('naklady').delete().eq('id', id);
+  if (!res.error) NAKLADY = NAKLADY.filter(function(n){ return n.id!==id; });
+  return res;
+}
+
+// Čistý zisk provozovny za měsíc = tržby - náklady - vyplacené mzdy.
+function getZiskVenueMonth(venueId, year, month) {
+  var trzby = getTrzbyForVenueMonth ? getTrzbyForVenueMonth(venueId, year, month) : [];
+  var trzbySum = trzby.reduce(function(s,t){ return s+(t.castka||0); }, 0);
+  // U bytů/nájmů "tržby" = přijaté nájemné za daný měsíc (nemají klasické denní tržby jako podnik s obsluhou).
+  var venue = getVenueById(venueId);
+  if (venue && venue.rezim === 'byty') {
+    // 'all' = celý rok (byty/nájmy běží celoročně, ne jen sezónu jako Kosatka) - proto tu jede
+    // přes všech 12 měsíců, ne jen přes ROZPIS_MESICE (to je jen pro sezónní podniky).
+    var mesice = month==='all'
+      ? Array.from({length:12}, function(_,i){ return year+'-'+String(i+1).padStart(2,'0'); })
+      : [year+'-'+String(month).padStart(2,'0')];
+    trzbySum += getBytyPlatbyForVenue(venueId).filter(function(p){ return mesice.indexOf(p.mesic)!==-1; }).reduce(function(s,p){ return s+p.castka; }, 0);
+  }
+  var naklady = getNakladyForVenueMonth(venueId, year, month);
+  var nakladySum = naklady.reduce(function(s,n){ return s+(n.castka||0); }, 0);
+  var vyplatySum;
+  if (month==='all') {
+    vyplatySum = VYPLATY.filter(function(v){ return v.venue_id===venueId && (v.datum||'').indexOf(String(year)+'-')===0; }).reduce(function(s,v){ return s+(v.castka||0); }, 0);
+  } else {
+    var prefix = year+'-'+String(month).padStart(2,'0');
+    vyplatySum = VYPLATY.filter(function(v){ return v.venue_id===venueId && (v.datum||'').indexOf(prefix)===0; }).reduce(function(s,v){ return s+(v.castka||0); }, 0);
+  }
+  return { trzby:trzbySum, naklady:nakladySum, vyplaty:vyplatySum, zisk: trzbySum - nakladySum - vyplatySum };
+}
+function getTrzbyForVenueMonth(venueId, year, month) {
+  if (month === 'all') return TRZBY.filter(function(t){return t.venue_id===venueId && t.datum.indexOf(String(year)+'-')===0;});
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  return TRZBY.filter(function(t){return t.venue_id===venueId && t.datum.indexOf(prefix)===0;});
+}
+// Čistý zisk provozovny za JEDEN konkrétní den (na rozdíl od getZiskVenueMonth, co počítá celý měsíc).
+function getZiskVenueDay(venueId, datum) {
+  var trzbySum = TRZBY.filter(function(t){return t.venue_id===venueId && t.datum===datum;}).reduce(function(s,t){return s+(t.castka||0);}, 0);
+  var nakladySum = NAKLADY.filter(function(n){return n.venue_id===venueId && n.datum===datum;}).reduce(function(s,n){return s+(n.castka||0);}, 0);
+  var vyplatySum = VYPLATY.filter(function(v){return v.venue_id===venueId && v.datum===datum;}).reduce(function(s,v){return s+(v.castka||0);}, 0);
+  return { trzby:trzbySum, naklady:nakladySum, vyplaty:vyplatySum, zisk: trzbySum - nakladySum - vyplatySum };
+}
+// Pondělí-neděle týden, do kterého patří dané datum (YYYY-MM-DD) - vrací {start, end} jako YYYY-MM-DD.
+function getWeekRange(datum) {
+  var d = new Date(datum+'T00:00:00');
+  var dow = d.getDay(); // 0=neděle..6=sobota
+  var diffToMonday = dow===0 ? -6 : 1-dow;
+  var mon = new Date(d); mon.setDate(d.getDate()+diffToMonday);
+  var sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  function toStr(x){ return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); }
+  return { start: toStr(mon), end: toStr(sun) };
+}
+function getTrzbyForVenueRange(venueId, fromDatum, toDatum) {
+  return TRZBY.filter(function(t){return t.venue_id===venueId && t.datum>=fromDatum && t.datum<=toDatum;});
+}
+function getTrzbyForVenueWeek(venueId, datumVTydnu) {
+  var w = getWeekRange(datumVTydnu);
+  return getTrzbyForVenueRange(venueId, w.start, w.end);
+}
+// Součty (celkem/hotově/kartou) pro seznam řádků tržeb - "hotove"/"kartou" chybí u
+// starších záznamů (null), proto se pro ně bere fallback na celou částku jako "neurčeno".
+function sumTrzby(rows) {
+  var s = { celkem:0, hotove:0, kartou:0, neurcene:0 };
+  rows.forEach(function(t){
+    s.celkem += (t.castka||0);
+    if (t.hotove!=null) s.hotove += t.hotove;
+    if (t.kartou!=null) s.kartou += t.kartou;
+    if (t.hotove==null && t.kartou==null) s.neurcene += (t.castka||0);
+  });
+  return s;
+}
+
+function getBusinessById(id) { return BUSINESSES.find(function(b){return b.id===id;}) || null; }
+function getVenueById(id) { return VENUES.find(function(v){return v.id===id;}) || null; }
+function getVenueBySlug(slug) { return VENUES.find(function(v){return v.slug===slug;}) || null; }
+function getStanovisteZaklad(venueId) { return STANOVISTE_ZAKLAD[venueId] || []; }
+
+// Které provozovny smí uživatel vidět/spravovat.
+// role 'admin'   -> úplně vše (super-admin, typicky majitel)
+// role 'spravce' -> jen provozovny přiřazené v admin_venues
+// role 'user'    -> jen svoje vlastní venue_id (typicky přesně jedna)
+function getAccessibleVenues(worker) {
+  if (!worker) return [];
+  if (worker.role === 'admin') return VENUES.slice();
+  if (worker.role === 'spravce') {
+    var ids = ADMIN_VENUES.filter(function(av){return av.worker_id===worker.id;}).map(function(av){return av.venue_id;});
+    return VENUES.filter(function(v){return ids.indexOf(v.id)!==-1;});
+  }
+  var w = WORKERS.find(function(x){return x.id===worker.id;}) || worker;
+  var ids2 = WORKER_VENUES.filter(function(wv){return wv.worker_id===worker.id;}).map(function(wv){return wv.venue_id;});
+  if (w.venue_id && ids2.indexOf(w.venue_id)===-1) ids2.push(w.venue_id);
+  return VENUES.filter(function(v){return ids2.indexOf(v.id)!==-1;});
+}
+
+// Přidá/odebere brigádníkovi vedlejší provozovnu (nemění jeho hlavní venue_id).
+async function addWorkerVenue(workerId, venueId) {
+  if (WORKER_VENUES.some(function(wv){return wv.worker_id===workerId && wv.venue_id===venueId;})) return {ok:true};
+  var row = { worker_id:workerId, venue_id:venueId };
+  var res = await db.from('worker_venues').insert([row]).select();
+  if (res.error) return { ok:false, error:res.error };
+  WORKER_VENUES.push(res.data[0]);
+  return { ok:true };
+}
+async function removeWorkerVenue(workerId, venueId) {
+  var res = await db.from('worker_venues').delete().eq('worker_id', workerId).eq('venue_id', venueId);
+  if (!res.error) WORKER_VENUES = WORKER_VENUES.filter(function(wv){return !(wv.worker_id===workerId && wv.venue_id===venueId);});
+  return res;
+}
+
+// Kam přesměrovat po přihlášení: pokud má přístup jen na jednu provozovnu, jde
+// se rovnou do ní (žádné klikání navíc); pokud na víc, ukáže se výběr podniků.
+//
+// DŮLEŽITÉ: nikdy nesmí vrátit 'index.html' - to by přihlašovací stránku
+// přesměrovalo samu na sebe = nekonečné dokolečka načítání. Když appka neví,
+// kam uživatele poslat, vrátí null a volající to musí ošetřit (zobrazit
+// zprávu, NE přesměrovat).
+function resolveLoginDestination(worker) {
+  // Multi-podnikové tabulky (venues/businesses) ještě nemusí v Supabase
+  // existovat (SQL migrace ještě neproběhla) - appka se pak chová jako dřív,
+  // čistě jako Kosatka, ať nic nezůstane rozbité.
+  if (!VENUES || VENUES.length === 0) {
+    return (worker.role === 'admin' || worker.role === 'spravce') ? 'admin.html' : 'app.html';
+  }
+  // DŮLEŽITÉ: appka už NIKDY nikoho automaticky nepřeskakuje rovnou do jedné
+  // provozovny. Vždycky se nejdřív ukáže hlavní panel s domečky podniků -
+  // i když má člověk přístup jen na jedno místo. To byl dřív důvod, proč
+  // "nešlo vybrat podnik": appka ho přeskočila dřív, než se stihl zobrazit.
+  return 'podniky.html';
+}
+// Bezpečné přesměrování - nikdy nenavigujeme na null/prázdno ani na
+// stránku, na které už jsme (to by způsobilo nekonečné dokolečka).
+function safeRedirect(url) {
+  if (!url) return false;
+  var here = window.location.pathname.split('/').pop() || 'index.html';
+  if (url.split('?')[0] === here) return false;
+  window.location.href = url;
+  return true;
+}
+
+function venueAppUrl(venue) {
+  if (venue.rezim === 'kosatka') return 'app.html';
+  if (venue.rezim === 'byty') return 'byty-admin.html?v=' + venue.slug;
+  return 'podnik.html?v=' + venue.slug;
+}
+function venueAdminUrl(venue) {
+  if (venue.rezim === 'kosatka') return 'admin.html';
+  if (venue.rezim === 'byty') return 'byty-admin.html?v=' + venue.slug;
+  return 'podnik-admin.html?v=' + venue.slug;
+}
+
+// ===================== ÚČTY - hromadné smazání po výplatě + admin mazání =====================
+// Položky na účtu se nikdy fyzicky nemažou (audit), ale po výplatě je chceme
+// brigádníkovi "zmizet z účtu" - proto soft-delete (smazano=true) přesně těch
+// položek, které do dané výplaty vešly (aby to sedělo i zpětně v historii).
+// Kosatka (app.html/admin.html) je starší a její položky na účtu nemají venue_id -
+// proto zvlášť varianta bez filtru na provozovnu.
+async function clearUctyForWorkerLegacy(workerId, adminId) {
+  var polozky = UCTY_POLOZKY.filter(function(p){ return p.workerId===workerId && !p.venue_id && !p.smazano; });
+  if (!polozky.length) return { ok:true };
+  var now = new Date().toISOString();
+  polozky.forEach(function(p){ p.smazano=true; p.smazano_at=now; p.smazano_by=adminId||null; });
+  var res = await dbUpsert('ucty', polozky);
+  if (!res.ok) { polozky.forEach(function(p){ p.smazano=false; p.smazano_at=null; p.smazano_by=null; }); }
+  return res;
+}
+async function clearUctyForWorkerVenue(venueId, workerId, adminId) {
+  var polozky = UCTY_POLOZKY.filter(function(p){ return p.workerId===workerId && p.venue_id===venueId && !p.smazano; });
+  if (!polozky.length) return { ok:true };
+  var now = new Date().toISOString();
+  polozky.forEach(function(p){ p.smazano=true; p.smazano_at=now; p.smazano_by=adminId||null; });
+  var res = await dbUpsert('ucty', polozky);
+  if (!res.ok) { polozky.forEach(function(p){ p.smazano=false; p.smazano_at=null; p.smazano_by=null; }); }
+  return res;
+}
+
+// ── Odečtení účtů od výplaty (volitelné - admin to zaškrtne v modálu Vyplatit) ──
+// Účty se normálně výplatou NEVYROVNÁVAJÍ (brigádník je platí sám zvlášť),
+// ale admin může při výplatě zaškrtnout "odečíst účty": otevřené položky se
+// pak vyrovnají z mzdy - označí se jako zaplacené (soft-delete, stejně jako
+// při ručním "Zaplaceno") a brigádník je u sebe už nevidí jako dluh.
+// Vybírá se po CELÝCH položkách od nejstarší, dokud se vejdou do částky
+// výplaty (aby výplata nikdy nešla do mínusu); co se nevejde, zůstane otevřené.
+function planUctyOdecet(polozky, maxCastka) {
+  var serazene = polozky.slice().sort(function(a,b){ return (a.datum||'').localeCompare(b.datum||'') || a.id-b.id; });
+  var celkem = 0; serazene.forEach(function(p){ celkem += p.castka; });
+  var vybrane = [], soucet = 0;
+  serazene.forEach(function(p){ if (soucet + p.castka <= maxCastka + 1e-9) { vybrane.push(p); soucet += p.castka; } });
+  return { polozky:vybrane, soucet:soucet, celkem:celkem };
+}
+function planUctyOdecetVenue(workerId, venueId, maxCastka) {
+  return planUctyOdecet(getUctyForWorkerVenue(workerId, venueId), maxCastka);
+}
+function planUctyOdecetLegacy(workerId, maxCastka) {
+  return planUctyOdecet(UCTY_POLOZKY.filter(function(p){ return p.workerId===workerId && !p.venue_id && !p.smazano; }), maxCastka);
+}
+async function settleUctyPolozky(polozky, adminId) {
+  if (!polozky.length) return { ok:true };
+  var now = new Date().toISOString();
+  polozky.forEach(function(p){ p.smazano=true; p.smazano_at=now; p.smazano_by=adminId||null; });
+  var res = await dbUpsert('ucty', polozky);
+  if (!res.ok) { polozky.forEach(function(p){ p.smazano=false; p.smazano_at=null; p.smazano_by=null; }); }
+  return res;
+}
+async function unsettleUctyPolozky(polozky) {
+  if (!polozky.length) return { ok:true };
+  polozky.forEach(function(p){ p.smazano=false; p.smazano_at=null; p.smazano_by=null; });
+  return await dbUpsert('ucty', polozky);
+}
+
+// Smazání JEDNÉ položky z účtu - výhradně pro admina/správce (volající stránka
+// si musí sama ohlídat, že tlačítko vidí jen admin - stejně jako u ostatních
+// admin-only akcí v appce).
+async function deleteUcetPolozkaAdmin(id, adminId) {
+  var p = UCTY_POLOZKY.find(function(x){return x.id===id;});
+  if (!p) return { ok:false, error:'Položka nenalezena' };
+  var puvodni = { smazano:p.smazano, smazano_at:p.smazano_at, smazano_by:p.smazano_by };
+  p.smazano = true; p.smazano_at = new Date().toISOString(); p.smazano_by = adminId||null;
+  var res = await dbUpsert('ucty', [p]);
+  if (!res.ok) Object.assign(p, puvodni);
+  return res;
+}
+
+// ===================== BYTY / NÁJMY =====================
+function getBytyForVenue(venueId) {
+  return BYTY.filter(function(b){ return b.venue_id===venueId && b.aktivni!==false; })
+    .sort(function(a,b){ return a.nazev.localeCompare(b.nazev,'cs',{numeric:true}); });
+}
+async function addByt(venueId, nazev, najemnik, mesicniCastka, poznamka) {
+  var row = { id:getNextId(BYTY), venue_id:venueId, nazev:nazev, najemnik:najemnik||'', mesicni_castka:mesicniCastka||0, poznamka:poznamka||'', aktivni:true };
+  var res = await dbUpsert('byty', [row]);
+  if (!res.ok) return res;
+  BYTY.push(row);
+  return { ok:true, row:row };
+}
+async function updateByt(id, fields) {
+  var b = BYTY.find(function(x){return x.id===id;});
+  if (!b) return { ok:false, error:'Byt nenalezen' };
+  var puvodni = Object.assign({}, b);
+  Object.assign(b, fields);
+  var res = await dbUpsert('byty', [b]);
+  if (!res.ok) Object.assign(b, puvodni);
+  return res;
+}
+async function deleteByt(id) {
+  var b = BYTY.find(function(x){return x.id===id;});
+  if (!b) return { ok:false };
+  b.aktivni = false;
+  var res = await dbUpsert('byty', [b]);
+  if (!res.ok) b.aktivni = true;
+  return res;
+}
+function getBytyPlatbyForMonth(bytId, mesic) {
+  return BYTY_PLATBY.filter(function(p){ return p.byt_id===bytId && p.mesic===mesic; });
+}
+function getBytZaplacenoMesic(bytId, mesic) {
+  return getBytyPlatbyForMonth(bytId, mesic).reduce(function(s,p){ return s+p.castka; }, 0);
+}
+// Dluh za daný měsíc = předpis mínus zatím přijaté platby za ten měsíc (může vyjít i záporně = přeplatek).
+function getBytDluhMesic(bytId, mesic) {
+  var b = BYTY.find(function(x){return x.id===bytId;});
+  if (!b) return 0;
+  return (b.mesicni_castka||0) - getBytZaplacenoMesic(bytId, mesic);
+}
+// Marker v popisu pokladního zápisu spojuje přijatý nájem s konkrétní platbou
+// (viz addBytPlatba/deleteBytPlatba) - stejný princip jako "(výplata #ID)".
+function bytPlatbaPokladnaMarker(platbaId) { return '(nájem #'+platbaId+')'; }
+async function addBytPlatba(bytId, mesic, castka, poznamka) {
+  var row = { id:getNextId(BYTY_PLATBY), byt_id:bytId, mesic:mesic, datum:todayStr(), castka:castka, poznamka:poznamka||'' };
+  var res = await dbUpsert('byty_platby', [row]);
+  if (!res.ok) return res;
+  BYTY_PLATBY.push(row);
+  // Přijatý nájem je příjem hotovosti do pokladní knihy dané nemovitosti -
+  // propiš ho tam automaticky, ať je v pokladně vidět každý pohyb peněz
+  // (stejně jako u tržeb a výplat u provozoven).
+  var b = BYTY.find(function(x){return x.id===bytId;});
+  var popis = 'Nájem – '+(b?b.nazev:'?')+(b && b.najemnik ? ' ('+b.najemnik+')' : '')+' za '+mesic+' '+bytPlatbaPokladnaMarker(row.id);
+  var pk = b ? await addPokladnaZapis(b.venue_id, 'prijem', castka, popis, null, 'hotovost', row.datum) : { ok:false };
+  return { ok:true, row:row, pokladnaOk: !!(pk && pk.ok) };
+}
+async function deleteBytPlatba(id) {
+  try {
+    var res = await db.from('byty_platby').delete().eq('id', id);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  BYTY_PLATBY = BYTY_PLATBY.filter(function(p){ return p.id!==id; });
+  // Smaž i odpovídající příjem v pokladní knize (viz addBytPlatba).
+  var marker = bytPlatbaPokladnaMarker(id);
+  var pkRows = POKLADNA.filter(function(p){ return (p.popis||'').indexOf(marker)!==-1; });
+  for (var i=0; i<pkRows.length; i++) { await deletePokladnaZapisAdmin(pkRows[i].id); }
+  return { ok:true };
+}
+function getBytyPlatbyForVenue(venueId) {
+  var ids = getBytyForVenue(venueId).map(function(b){return b.id;});
+  return BYTY_PLATBY.filter(function(p){ return ids.indexOf(p.byt_id)!==-1; }).sort(function(a,b){return b.datum.localeCompare(a.datum);});
+}
+
+// ===================== POKLADNÍ KNIHA =====================
+// "ucet" rozlišuje hotovostní pokladnu (výchozí, staré řádky bez "ucet" se
+// berou jako 'hotovost') od "online peněženky" (karetní platby/příjmy) -
+// stejná tabulka a stejná logika, jen se navíc filtruje podle typu účtu.
+function getPokladnaForVenue(venueId, ucet) {
+  ucet = ucet || 'hotovost';
+  return POKLADNA.filter(function(p){ return p.venue_id===venueId && (p.ucet||'hotovost')===ucet; }).sort(function(a,b){ return b.datum.localeCompare(a.datum) || b.id-a.id; });
+}
+function getPokladnaZustatek(venueId, ucet) {
+  ucet = ucet || 'hotovost';
+  return POKLADNA.filter(function(p){ return p.venue_id===venueId && (p.ucet||'hotovost')===ucet; })
+    .reduce(function(s,p){ return s + (p.typ==='prijem' ? p.castka : -p.castka); }, 0);
+}
+// Součet zůstatků přes VŠECHNY provozovny, které vidí daný uživatel (pro přehled na hlavním panelu).
+function getPokladnaZustatekCelkem(venueIds, ucet) {
+  ucet = ucet || 'hotovost';
+  return POKLADNA.filter(function(p){ return venueIds.indexOf(p.venue_id)!==-1 && (p.ucet||'hotovost')===ucet; })
+    .reduce(function(s,p){ return s + (p.typ==='prijem' ? p.castka : -p.castka); }, 0);
+}
+async function addPokladnaZapis(venueId, typ, castka, popis, workerId, ucet, datum) {
+  var row = { id:getNextId(POKLADNA), venue_id:venueId, datum:datum||todayStr(), typ:typ, castka:Math.abs(castka), popis:popis, worker_id:workerId||null, ucet:ucet||'hotovost' };
+  var res = await dbUpsert('pokladna', [row]);
+  if (!res.ok) return res;
+  POKLADNA.push(row);
+  return { ok:true, row:row };
+}
+// Pokladní zápisy za konkrétní měsíc (nebo 'all' = celý rok) - pro filtrování
+// historie pokladny podle měsíce.
+function getPokladnaForVenueMonth(venueId, ucet, year, month) {
+  var rows = getPokladnaForVenue(venueId, ucet);
+  if (month === 'all') return rows.filter(function(p){ return (p.datum||'').indexOf(String(year)+'-')===0; });
+  var prefix = year+'-'+String(month).padStart(2,'0');
+  return rows.filter(function(p){ return (p.datum||'').indexOf(prefix)===0; });
+}
+// Anděl Café a Anděl Music Club navíc přijímají platby kartou na "online
+// peněženku" (např. přes platební terminál/aplikaci) - odlišit od klasické
+// hotovostní pokladny (safu), ale se stejným ovládáním.
+function isOnlinePenezenkaVenue(venue) {
+  return !!(venue && (venue.slug==='andel-cafe' || venue.slug==='andel-music-club'));
+}
+// Souhrnný přehled VŠECH nákladů provozovny za daný měsíc (nebo 'all' = celý
+// rok) - spojuje faktury/náklady (NAKLADY) s výdaji zapsanými přímo z
+// pokladny (POKLADNA, typ='vydaj', hotovost i online). Jedno místo, kde je
+// vidět úplně všechno, co provozovnu za dané období stálo peníze.
+function getVsechnyNakladyVenueMonth(venueId, year, month) {
+  var faktury = getNakladyForVenueMonth(venueId, year, month).map(function(n){
+    return { id:n.id, datum:n.datum, popis:n.popis, castka:n.castka, zdroj:'faktura', kategorie:n.kategorie, workerId:n.workerId };
+  });
+  var pokladnaVydaje = getPokladnaForVenueMonth(venueId, 'hotovost', year, month)
+    .concat(getPokladnaForVenueMonth(venueId, 'online', year, month))
+    .filter(function(p){ return p.typ==='vydaj'; })
+    .map(function(p){
+      return { id:p.id, datum:p.datum, popis:p.popis, castka:p.castka, zdroj:(p.ucet==='online'?'online pokladna':'pokladna'), kategorie:null, workerId:p.worker_id };
+    });
+  return faktury.concat(pokladnaVydaje).sort(function(a,b){ return (b.datum||'').localeCompare(a.datum||'') || (b.id-a.id); });
+}
+// Automatický propis tržby do pokladní knihy provozovny - brigádník zapíše
+// kolik bylo z tržby hotově/kartou/celkem, hotová část se propíše do
+// hotovostní pokladny (safu) a kartová část do online peněženky, ať tam
+// správce jen kouká, kolik reálně má/dostane, bez ručního přepisování.
+var POKLADNA_AUTO_PREFIX = 'Tržba (auto)';
+async function syncPokladnaZTrzby(venueId, stanovisteId, datum, castka, workerId, ucet) {
+  ucet = ucet || 'hotovost';
+  var marker = POKLADNA_AUTO_PREFIX+' · '+stanovisteId+' · '+datum;
+  var existing = POKLADNA.find(function(p){ return p.venue_id===venueId && p.popis===marker && (p.ucet||'hotovost')===ucet; });
+  if (existing) {
+    existing.castka = castka;
+    if (workerId) existing.worker_id = workerId;
+    try { await db.from('pokladna').update({ castka:castka, worker_id:existing.worker_id||null }).eq('id', existing.id); } catch(e) {}
+    return;
+  }
+  if (!castka) return; // nula = není co zapisovat
+  var row = { id:getNextId(POKLADNA), venue_id:venueId, datum:datum, typ:'prijem', castka:castka, popis:marker, worker_id:workerId||null, ucet:ucet };
+  POKLADNA.push(row);
+  try { await dbUpsert('pokladna', [row]); } catch(e) {}
+}
+// Smazání zápisu v pokladní knize - výhradně admin (viz poznámka u deleteUcetPolozkaAdmin).
+async function deletePokladnaZapisAdmin(id) {
+  try {
+    var res = await db.from('pokladna').delete().eq('id', id);
+    if (res && res.error) return { ok:false, error:res.error };
+  } catch(e) { return { ok:false, error:e }; }
+  POKLADNA = POKLADNA.filter(function(p){ return p.id!==id; });
+  return { ok:true };
+}
+
+// ===================== MĚSÍČNÍ UZÁVĚRKA POKLADNY =====================
+// Na začátku měsíce admin fyzicky spočítá hotovost (nebo zůstatek online
+// peněženky) a zapíše si to sem jako "počáteční stav", na konci měsíce
+// totéž jako "konečný stav". Appka to porovná s tím, co jí vyšlo z pokladní
+// knihy (POKLADNA - součet příjem/výdaj do daného data), ať admin hned vidí,
+// jestli mu to sedí, nebo jestli mu něco chybí/přebývá.
+function getPokladnaUzaverka(venueId, ucet, rok, mesic, typ) {
+  ucet = ucet || 'hotovost';
+  return POKLADNA_UZAVERKY.find(function(u){
+    return u.venue_id===venueId && (u.ucet||'hotovost')===ucet && u.rok===rok && u.mesic===mesic && u.typ===typ;
+  }) || null;
+}
+async function savePokladnaUzaverka(venueId, ucet, rok, mesic, typ, castka, poznamka, adminId) {
+  var blocked = requireLoadOk('pokladna_uzaverky'); if (blocked) return blocked;
+  ucet = ucet || 'hotovost';
+  var existing = getPokladnaUzaverka(venueId, ucet, rok, mesic, typ);
+  var row;
+  if (existing) {
+    existing.castka = castka; existing.poznamka = poznamka||''; existing.datum = todayStr(); existing.admin_id = adminId||null;
+    row = existing;
+  } else {
+    row = { id:getNextId(POKLADNA_UZAVERKY), venue_id:venueId, ucet:ucet, rok:rok, mesic:mesic, typ:typ, castka:castka, poznamka:poznamka||'', datum:todayStr(), admin_id:adminId||null };
+    POKLADNA_UZAVERKY.push(row);
+  }
+  var res = await dbUpsert('pokladna_uzaverky', [row]);
+  if (!res.ok) return res;
+  return { ok:true, row:row };
+}
+// Kolik by podle pokladní knihy mělo být na daném účtu k danému dni (včetně) -
+// součet všech příjmů minus výdaje zapsané do a včetně tohohle data.
+function getPokladnaStavKDatu(venueId, ucet, datumInclusive) {
+  ucet = ucet || 'hotovost';
+  return POKLADNA.filter(function(p){ return p.venue_id===venueId && (p.ucet||'hotovost')===ucet && p.datum<=datumInclusive; })
+    .reduce(function(s,p){ return s + (p.typ==='prijem' ? p.castka : -p.castka); }, 0);
+}
+// Očekávaný počáteční stav měsíce = to, co podle knihy bylo v pokladně těsně
+// před prvním dnem daného měsíce (tzn. stav ke konci předchozího měsíce).
+function getOcekavanyPocatecniStav(venueId, ucet, rok, mesic) {
+  var posledniPredchoziho = new Date(rok, mesic-1, 0); // den 0 = poslední den předchozího měsíce
+  var ds = posledniPredchoziho.getFullYear()+'-'+String(posledniPredchoziho.getMonth()+1).padStart(2,'0')+'-'+String(posledniPredchoziho.getDate()).padStart(2,'0');
+  return getPokladnaStavKDatu(venueId, ucet, ds);
+}
+// Očekávaný konečný stav měsíce = stav podle knihy k poslednímu dni daného měsíce.
+function getOcekavanyKonecnyStav(venueId, ucet, rok, mesic) {
+  var posledniDen = new Date(rok, mesic, 0);
+  var ds = posledniDen.getFullYear()+'-'+String(posledniDen.getMonth()+1).padStart(2,'0')+'-'+String(posledniDen.getDate()).padStart(2,'0');
+  return getPokladnaStavKDatu(venueId, ucet, ds);
+}
+
+// ===================== AUTOMATICKÉ (OPAKOVANÉ) PLATBY =====================
+function getOpakovaneForVenue(venueId) {
+  return NAKLADY_OPAKOVANE.filter(function(n){ return n.venue_id===venueId && n.aktivni!==false; });
+}
+async function addOpakovanyNaklad(venueId, popis, castka, denVMesici, kategorie) {
+  var row = { id:getNextId(NAKLADY_OPAKOVANE), venue_id:venueId, popis:popis, castka:castka, den_v_mesici:denVMesici||1, aktivni:true, kategorie:kategorie||null };
+  var res = await dbUpsert('naklady_opakovane', [row]);
+  if (!res.ok) return res;
+  NAKLADY_OPAKOVANE.push(row);
+  return { ok:true, row:row };
+}
+async function deleteOpakovanyNaklad(id) {
+  var n = NAKLADY_OPAKOVANE.find(function(x){return x.id===id;});
+  if (!n) return { ok:true };
+  n.aktivni = false;
+  var res = await dbUpsert('naklady_opakovane', [n]);
+  if (!res.ok) n.aktivni = true;
+  return res;
+}
+// Zavolá se při každém načtení appky: pro každou aktivní opakovanou platbu
+// zkontroluje, jestli už letos-tenhle-měsíc nebyla zapsaná do nákladů - pokud
+// ne a zároveň už nastal den v měsíci, kdy se má zapsat, přidá ji do "naklady"
+// automaticky (aby na elektřinu/vodu nikdo nezapomněl).
+async function ensureOpakovaneNaklady() {
+  if (!NAKLADY_OPAKOVANE.length) return;
+  var mesic = currentMonthStr();
+  var dnesDen = new Date().getDate();
+  var toInsert = [];
+  NAKLADY_OPAKOVANE.forEach(function(n){
+    if (n.aktivni===false) return;
+    if (dnesDen < (n.den_v_mesici||1)) return;
+    var jiz = NAKLADY.some(function(x){ return x.opakovany_id===n.id && x.mesic===mesic; });
+    if (jiz) return;
+    var row = { id:getNextId(NAKLADY.concat(toInsert)), venue_id:n.venue_id, workerId:null, datum:todayStr(), popis:'🔁 '+n.popis, castka:n.castka, opakovany_id:n.id, mesic:mesic, kategorie:n.kategorie||null };
+    toInsert.push(row);
+  });
+  if (!toInsert.length) return;
+  var res = await dbUpsert('naklady', toInsert);
+  if (res.ok) NAKLADY = NAKLADY.concat(toInsert);
+}
+
+// ===================== NASTAVENÍ (konfigurace appky bez zásahu do kódu) =====================
+// Obecné klíč/hodnota úložiště (tabulka app_settings). Když je klíč v DB nastavený,
+// přebije odpovídající natvrdo napsanou konstantu v appce (STANOVISTE, PENALIZACE_DUVODY, ...).
+// Pokud DB nastavení chybí, appka normálně jede s výchozími hodnotami - nic se nerozbije.
+var APP_SETTINGS = {};
+async function loadSettings() {
+  try {
+    var r = await db.from('app_settings').select('*');
+    if (r.error) throw r.error;
+    APP_SETTINGS = {};
+    (r.data||[]).forEach(function(row){ APP_SETTINGS[row.key] = row.value; });
+    applySettingsOverrides();
+    return { ok:true };
+  } catch(e) {
+    console.error('Načtení nastavení selhalo:', e);
+    return { ok:false, error:e };
+  }
+}
+async function saveSetting(key, value) {
+  var row = { key:key, value:value, updated_at:new Date().toISOString() };
+  try {
+    var res = await db.from('app_settings').upsert([row]);
+    if (res.error) return { ok:false, error:res.error };
+    APP_SETTINGS[key] = value;
+    applySettingsOverrides();
+    return { ok:true };
+  } catch(e) { return { ok:false, error:e }; }
+}
+function applySettingsOverrides() {
+  if (Array.isArray(APP_SETTINGS.kosatka_stanoviste) && APP_SETTINGS.kosatka_stanoviste.length) {
+    STANOVISTE.length = 0;
+    APP_SETTINGS.kosatka_stanoviste.forEach(function(s){ STANOVISTE.push(s); });
+  }
+  if (Array.isArray(APP_SETTINGS.penalizace_duvody) && APP_SETTINGS.penalizace_duvody.length) {
+    PENALIZACE_DUVODY.length = 0;
+    APP_SETTINGS.penalizace_duvody.forEach(function(d){ PENALIZACE_DUVODY.push(d); });
+  }
+  if (Array.isArray(APP_SETTINGS.rozpis_mesice) && APP_SETTINGS.rozpis_mesice.length) {
+    ROZPIS_MESICE.length = 0;
+    APP_SETTINGS.rozpis_mesice.forEach(function(m){ ROZPIS_MESICE.push(m); });
+  }
+  if (Array.isArray(APP_SETTINGS.muzika_dny)) {
+    MUZIKA_DNY.length = 0;
+    APP_SETTINGS.muzika_dny.forEach(function(d){ MUZIKA_DNY.push(d); });
+  }
+  if (typeof APP_SETTINGS.hodinova_sazba === 'number' && APP_SETTINGS.hodinova_sazba > 0) {
+    HODINOVA_SAZBA = APP_SETTINGS.hodinova_sazba;
+  }
+}
+
+// ===================== SMAZÁNÍ CELÉHO ÚČTU BRIGÁDNÍKA (jedno tlačítko) =====================
+// Smaže brigádníka úplně ze všeho - rozpis, účty, výplaty, tržby, penalizace, docházka,
+// objednávky, sklad, dostupnost, VLOG, přiřazení provozoven i přihlašovací (Supabase Auth) účet.
+// Řádky, kde vystupuje jen jako "kdo tohle udělal" (ucty.odepsano_by/smazano_by, pokladna,
+// náklady zapsané jinému podniku) se nemažou, jen se od něj odpojí, ať nezmizí cizí historie.
+async function deleteWorkerCascade(workerId) {
+  var w = getWorkerById(workerId);
+  if (!w) return { ok:false, error:'Brigádník nenalezen' };
+  try {
+    // fotky ve storage
+    if (w.foto_url) {
+      var path = vlogStoragePathFromUrl(w.foto_url) || (function(){ var m=w.foto_url.match(/\/avatars\/(.+)$/); return m?m[1]:null; })();
+      if (path) { try { await db.storage.from('avatars').remove([path]); } catch(e){} }
+    }
+    var vlogy = VLOG_POSTS.filter(function(p){ return p.worker_id===workerId; });
+    for (var i=0;i<vlogy.length;i++) {
+      if (vlogy[i].foto_url) {
+        var vp = vlogStoragePathFromUrl(vlogy[i].foto_url);
+        if (vp) { try { await db.storage.from('avatars').remove([vp]); } catch(e){} }
+      }
+    }
+
+    // odpojit (ne smazat) cizí odkazy
+    await db.from('ucty').update({ odepsano_by:null }).eq('odepsano_by', workerId);
+    await db.from('ucty').update({ smazano_by:null }).eq('smazano_by', workerId);
+    await db.from('pokladna').update({ worker_id:null }).eq('worker_id', workerId);
+    await db.from('naklady').update({ workerId:null }).eq('workerId', workerId);
+
+    // smazat vlastní řádky
+    var vlastni = [
+      ['worker_venues','worker_id'], ['worker_dostupnost','worker_id'], ['admin_venues','worker_id'],
+      ['vlog_posts','worker_id'], ['ucty','workerId'], ['schedule','workerId'], ['uklid_log','workerId'],
+      ['penalizace','workerId'], ['pracovni_dny','workerId'], ['vyplaty','workerId'], ['trzby','workerId'],
+      ['objednavky','workerId'], ['sklad_pohyby','workerId'], ['sklad_inventury','workerId'],
+      ['push_subscriptions','worker_id']
+    ];
+    for (var j=0;j<vlastni.length;j++) {
+      await db.from(vlastni[j][0]).delete().eq(vlastni[j][1], workerId);
+    }
+
+    // Supabase Auth identita (pokud měl e-mailové přihlášení)
+    if (w.auth_user_id) { try { await callAdminFn('delete_auth_user', w.auth_user_id); } catch(e){} }
+
+    // nakonec samotný profil
+    var resW = await db.from('workers').delete().eq('id', workerId);
+    if (resW && resW.error) return { ok:false, error:resW.error };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+
+  WORKERS = WORKERS.filter(function(x){ return x.id!==workerId; });
+  SCHEDULE = SCHEDULE.filter(function(x){ return x.workerId!==workerId; });
+  UCTY_POLOZKY = UCTY_POLOZKY.filter(function(x){ return x.workerId!==workerId; });
+  VYPLATY = VYPLATY.filter(function(x){ return x.workerId!==workerId; });
+  TRZBY = TRZBY.filter(function(x){ return x.workerId!==workerId; });
+  PENALIZACE = PENALIZACE.filter(function(x){ return x.workerId!==workerId; });
+  PRACOVNI_DNY = PRACOVNI_DNY.filter(function(x){ return x.workerId!==workerId; });
+  UKLID_LOG = UKLID_LOG.filter(function(x){ return x.workerId!==workerId; });
+  VLOG_POSTS = VLOG_POSTS.filter(function(x){ return x.worker_id!==workerId; });
+  ADMIN_VENUES = ADMIN_VENUES.filter(function(x){ return x.worker_id!==workerId; });
+  WORKER_VENUES = WORKER_VENUES.filter(function(x){ return x.worker_id!==workerId; });
+  return { ok:true };
+}
+
+// ===================== PUSH NOTIFIKACE (web push) =====================
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base64), out = new Uint8Array(raw.length);
+  for (var i=0;i<raw.length;i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+async function pushIsSupported() {
+  return ('serviceWorker' in navigator) && ('PushManager' in window);
+}
+// Vysvětlí SLOVY, proč tlačítko chybí, místo aby zmizelo beze stopy - hlavně na
+// iPhonu je důvodů víc (stará appka nepřidaná na plochu, stará verze iOS, appka
+// otevřená v Safari místo z ikonky na ploše...).
+function pushUnsupportedReason() {
+  var ua = navigator.userAgent || '';
+  var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isIOS && !isStandalone) return 'Na iPhonu/iPadu push notifikace fungují jen v appce přidané na plochu - otevři appku přes ikonku na ploše, ne přes Safari.';
+  if (isIOS && isStandalone) return 'Push notifikace na iPhonu/iPadu fungují až od iOS 16.4. Zkontroluj si verzi iOS (Nastavení → Obecné → Informace o zařízení) a případně ji aktualizuj.';
+  if (!('serviceWorker' in navigator)) return 'Tenhle prohlížeč vůbec nepodporuje service workery (push notifikace) - zkus jiný/novější prohlížeč.';
+  return 'Tenhle prohlížeč push notifikace nepodporuje.';
+}
+async function pushGetPermissionState() {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission; // 'default' | 'granted' | 'denied'
+}
+// Zaregistruje service worker (pokud ještě není) a přihlásí zařízení k push notifikacím pro daného brigádníka.
+async function subscribeToPush(workerId) {
+  if (!await pushIsSupported()) return { ok:false, error:'Tenhle prohlížeč push notifikace nepodporuje.' };
+  try {
+    var reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') return { ok:false, error:'Notifikace nejsou povolené.' };
+    var sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    }
+    var json = sub.toJSON();
+    var row = { worker_id:workerId, endpoint:json.endpoint, p256dh:json.keys.p256dh, auth:json.keys.auth };
+    var res = await db.from('push_subscriptions').upsert([row], { onConflict:'endpoint' });
+    if (res.error) return { ok:false, error:res.error };
+    return { ok:true };
+  } catch(e) {
+    return { ok:false, error:e };
+  }
+}
+async function unsubscribeFromPush() {
+  try {
+    if (!('serviceWorker' in navigator)) return { ok:true };
+    var reg = await navigator.serviceWorker.getRegistration('sw.js');
+    if (!reg) return { ok:true };
+    var sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await db.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      await sub.unsubscribe();
+    }
+    return { ok:true };
+  } catch(e) { return { ok:false, error:e }; }
+}
+
+// ===================== SAMOOBSLUŽNÁ SPRÁVA (nová provozovna / stanoviště) =====================
+async function addBusiness(nazev, ikona) {
+  var row = { nazev:nazev, ikona:ikona||'🏠', poradi: BUSINESSES.length };
+  var res = await db.from('businesses').insert([row]).select();
+  if (res.error) return { ok:false, error:res.error };
+  BUSINESSES.push(res.data[0]);
+  return { ok:true, row:res.data[0] };
+}
+async function addVenue(businessId, nazev, slug, ikona, rezim, sazba) {
+  var row = { business_id:businessId, nazev:nazev, slug:slug, ikona:ikona||'🏠', rezim:rezim||'zaklad', sazba_hodinova:sazba||180, poradi: VENUES.length };
+  var res = await db.from('venues').insert([row]).select();
+  if (res.error) return { ok:false, error:res.error };
+  VENUES.push(res.data[0]);
+  return { ok:true, row:res.data[0] };
+}
+async function updateVenueSazba(venueId, sazba) {
+  var res = await db.from('venues').update({ sazba_hodinova: sazba }).eq('id', venueId);
+  if (res.error) return { ok:false, error:res.error };
+  var v = VENUES.find(function(x){ return x.id===venueId; });
+  if (v) v.sazba_hodinova = sazba;
+  return { ok:true };
+}
+async function addStanovisteRow(venueId, slug, label, ikona) {
+  var poradi = getStanovisteZaklad(venueId).length;
+  var row = { venue_id:venueId, slug:slug, label:label, ikona:ikona||'🧑‍💼', poradi:poradi };
+  var res = await db.from('stanoviste').insert([row]).select();
+  if (res.error) return { ok:false, error:res.error };
+  if (!STANOVISTE_ZAKLAD[venueId]) STANOVISTE_ZAKLAD[venueId]=[];
+  STANOVISTE_ZAKLAD[venueId].push(res.data[0]);
+  return { ok:true, row:res.data[0] };
+}
