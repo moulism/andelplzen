@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Správa webu | Anděl Plzeň</title>
-<link rel="stylesheet" href="style.css?v=20261025b">
+<link rel="stylesheet" href="style.css?v=20261025c">
 <link rel="icon" href="favicon.ico" sizes="any">
 <style>
 .adm{max-width:1000px;margin:0 auto;padding:130px 20px 80px;color:var(--text)}
@@ -186,7 +186,7 @@
         <h2 id="me-title">Nové týdenní menu</h2>
         <div class="row3">
           <div><label for="me-venue">Prostor</label>
-            <select id="me-venue"><option value="cafe">Café</option><option value="klub">Music Club</option><option value="dvorek">Dvorek</option></select></div>
+            <select id="me-venue"><option value="bistro">Bistro</option></select></div>
           <div><label for="me-from">Platí od</label><input type="date" id="me-from"></div>
           <div><label for="me-to">Platí do</label><input type="date" id="me-to"></div>
         </div>
@@ -285,7 +285,7 @@
     <div id="tab-help" class="hidden">
       <div class="adm-card">
         <h2>Jak to funguje</h2>
-        <p><b>Týdenní menu.</b> Založ menu pro Café, Music Club nebo Dvorek, nastav, od kdy do kdy platí, a vyplň položky. Na webu se samo ukáže v den „od“ a samo zmizí po dni „do“. Tlačítkem „Zkopírovat na další týden“ si ušetříš práci — zkopíruje položky a posune data o 7 dní.</p>
+        <p><b>Týdenní menu.</b> Týdenní menu je jen pro Bistro. Založ menu, nastav, od kdy do kdy platí, a vyplň položky. Na webu se samo ukáže v den „od“ a samo zmizí po dni „do“. Tlačítkem „Zkopírovat na další týden“ si ušetříš práci — zkopíruje položky a posune data o 7 dní.</p>
         <p><b>Fotky k položkám.</b> V záložce Fotky vyber menu a kategorii a u položky nahraj fotku. Obrázky se při nahrání samy zmenší, takže stačí fotka z telefonu.</p>
         <p><b>Správci.</b> Admini z aplikace pro brigádníky (role admin) se přihlásí rovnou jménem a PINem, nic nastavovat nemusí. Ostatní se zaregistrují e-mailem, potvrdí ho a ty jejich e-mail přidáš v záložce Správci.</p>
         <p><b>Něco nejde?</b> Obnov stránku (Ctrl/Cmd+Shift+R). Pokud problém trvá, napiš vývojáři webu.</p>
@@ -295,12 +295,12 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="web-config.js?v=20261025b"></script>
-<script src="menu-data.js?v=20261025b"></script>
+<script src="web-config.js?v=20261025c"></script>
+<script src="menu-data.js?v=20261025c"></script>
 <script>
 (function () {
   const db = supabase.createClient(AndelWeb.url, AndelWeb.key, { auth: { storageKey: "andel-web-admin", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-  const VEN = { cafe: "Café", klub: "Music Club", dvorek: "Dvorek" };
+  const VEN = { cafe: "Café", klub: "Music Club", dvorek: "Dvorek", bistro: "Bistro" };
   const IMG_BASE = "images/drinks/";
   const $ = id => document.getElementById(id);
   const show = (id, on) => $(id).classList.toggle("hidden", !on);
@@ -513,7 +513,7 @@
     editing = m ? { id: m.id, items: JSON.parse(JSON.stringify(m.items || [])), file_url: m.file_url || null }
                 : { id: null, items: [{ n: "", d: "", p: "" }], file_url: null };
     $("me-title").textContent = m ? "Úprava menu" : "Nové týdenní menu";
-    $("me-venue").value = m ? m.venue : "cafe";
+    $("me-venue").value = "bistro";
     $("me-from").value = m ? m.valid_from : mon;
     $("me-to").value = m ? m.valid_to : addDays(mon, 6);
     $("me-name").value = m ? m.title : "Týdenní menu";

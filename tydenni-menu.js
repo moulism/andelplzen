@@ -3,10 +3,8 @@
 (function () {
   const root = document.getElementById("weekly-root");
   if (!root) return;
-  const VENUES = { cafe: "Café", klub: "Music Club", dvorek: "Dvorek" };
-  const FIXED = { cafe: "menu.html", klub: "menu-music-club.html", dvorek: "menu-dvorek.html" };
-  let venue = new URLSearchParams(location.search).get("v");
-  if (!VENUES[venue]) venue = "cafe";
+  const VENUES = { bistro: "Bistro" };
+  const venue = "bistro";
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -78,27 +76,14 @@
     );
     root.innerHTML = "";
     if (rows === null) {
-      root.appendChild(el("p", "weekly-empty", "Týdenní menu se teď nepodařilo načíst. Zkuste to prosím za chvíli, nebo se podívejte do stálého menu."));
+      root.appendChild(el("p", "weekly-empty", "Týdenní menu se teď nepodařilo načíst. Zkuste to prosím za chvíli."));
     } else if (!rows.length) {
-      root.appendChild(el("p", "weekly-empty", "Týdenní menu pro " + VENUES[venue] + " zatím není zveřejněné. Podívejte se do stálého menu, nebo nás sledujte na sociálních sítích."));
+      root.appendChild(el("p", "weekly-empty", "Týdenní menu zatím není zveřejněné. Sledujte nás na sociálních sítích, ať vám nic neuteče."));
     } else {
       rows.forEach(m => root.appendChild(renderMenu(m, m.valid_from > t)));
     }
-    const more = el("p", "weekly-fixed");
-    const a = el("a", null, "Stálé menu " + VENUES[venue] + " →");
-    a.href = FIXED[venue];
-    more.appendChild(a);
-    root.appendChild(more);
   }
 
-  const sw = document.getElementById("weekly-switch");
-  if (sw) {
-    Object.keys(VENUES).forEach(k => {
-      const a = el("a", k === venue ? "active" : "", VENUES[k]);
-      a.href = "tydenni-menu.html?v=" + k;
-      sw.appendChild(a);
-    });
-  }
   const h = document.getElementById("weekly-title");
   if (h) h.textContent = "Týdenní menu " + VENUES[venue];
   load();
