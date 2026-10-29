@@ -1276,7 +1276,7 @@ dvorek: {
 /* ======================================================= ANDĚL BISTRO */
 bistro: {
   title: "Anděl Bistro",
-  subtitle: "Pizza • Pasta • Tapas • Káva & drinky",
+  subtitle: "Antipasti • Saláty • Pizza • Pasta • Dezerty • Tapas",
   menu: [
     {
       cat: "Předkrmy", icon: "snack",
@@ -1288,39 +1288,40 @@ bistro: {
       ]
     },
     {
-      cat: "Pizza (32 cm)", icon: "snack",
+      cat: "Saláty", icon: "snack",
       items: [
-        { n:"Margherita", d:"rajčata San Marzano, mozzarella fior di latte, parmigiano, bazalka, olivový olej extra vergine", p:"239 Kč" },
-        { n:"Salami", d:"rajčata San Marzano, mozzarella fior di latte, milánský salám, Grana Padano, bazalka, olivový olej extra vergine", p:"269 Kč" },
-        { n:"Prosciutto cotto", d:"rajčata San Marzano, mozzarella fior di latte, prosciutto cotto, Grana Padano, bazalka, olivový olej extra vergine", p:"289 Kč" },
-        { n:"Burrata e pomodoro", d:"rajčata San Marzano, burrata, rukola, bazalka, Grana Padano, olivový olej extra vergine", p:"289 Kč" },
-        { n:"Mortadella e pistacchio", d:"mozzarella fior di latte, mortadella, burrata, pistáciové pesto, drcené pistácie, olivový olej extra vergine", p:"279 Kč" },
-        { n:"Diavola", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, pikantní salám Spianata Calabra, Grana Padano, bazalka, olivový olej extra vergine", p:"289 Kč" },
-        { n:"Quattro formaggi", d:"mozzarella fior di latte, gorgonzola, taleggio, Parmigiano Reggiano, olivový olej extra vergine", p:"289 Kč" },
-        { n:"Funghi", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, žampiony", p:"289 Kč" },
-        { n:"Pollo e spinachi", d:"smetana, mozzarella fior di latte, špenát, kuřecí maso, česnek", p:"269 Kč" },
-        { n:"Ventricino", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, italský pikantní salám, jalapeños, vajíčko, česnek", p:"279 Kč" },
-        { n:"Frutti di mare", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, směs mořských plodů (krevety, slávky, kalamáry, losos)", p:"299 Kč" },
+        { n:"Insalata con prosciutto e stracciatella", d:"burrata, prosciutto crudo, cherry rajčata, rukola, olivy Leccino, bazalka, strouhaný žloutek, olivový olej extra vergine, grilovaný chléb", s:"350 g", p:"225 Kč" },
+        { n:"Insalata pollo e parmigiano", d:"grilované kuřecí prso, mix listových salátů, cherry rajčata, Parmigiano Reggiano, sušená rajčata, citronový dresink, grilovaný chléb", s:"350 g", p:"245 Kč" },
+        { n:"Caesar con salmone", d:"římský salát, caesar dresink, krutony, grilovaný losos, hoblinky parmezánu", s:"350 g", p:"255 Kč" },
       ]
     },
     {
-      cat: "Pasta / Gnocchi / Risotto", icon: "snack",
+      cat: "Pizza", icon: "snack",
+      note: "Průměr 32 cm. Pizza s sebou — každou pizzu vám rádi zabalíme s sebou.",
+      items: [
+        { n:"Margherita", d:"rajčata San Marzano, mozzarella fior di latte, Parmigiano, bazalka, olivový olej extra vergine", s:"32 cm", p:"239 Kč" },
+        { n:"Salami", d:"rajčata San Marzano, mozzarella fior di latte, milánský salám, Grana Padano, bazalka, olivový olej extra vergine", s:"32 cm", p:"269 Kč" },
+        { n:"Prosciutto cotto", d:"rajčata San Marzano, mozzarella fior di latte, prosciutto cotto, Grana Padano, bazalka, olivový olej extra vergine", s:"32 cm", p:"289 Kč" },
+        { n:"Burrata e pomodoro", d:"rajčata San Marzano, burrata, rukola, bazalka, Grana Padano, olivový olej extra vergine", s:"32 cm", p:"289 Kč" },
+        { n:"Mortadella e pistacchio", d:"mozzarella fior di latte, mortadella, burrata, pistáciové pesto, drcené pistácie, olivový olej extra vergine", s:"32 cm", p:"279 Kč" },
+        { n:"Diavola", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, pikantní salám Spianata Calabra, Grana Padano, bazalka, olivový olej extra vergine", s:"32 cm", p:"289 Kč" },
+        { n:"Quattro formaggi", d:"mozzarella fior di latte, gorgonzola, taleggio, Parmigiano Reggiano, olivový olej extra vergine", s:"32 cm", p:"289 Kč" },
+        { n:"Funghi", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, žampiony", s:"32 cm", p:"289 Kč" },
+        { n:"Pollo e spinaci", d:"smetana, mozzarella fior di latte, špenát, kuřecí maso, česnek", s:"32 cm", p:"269 Kč" },
+        { n:"Ventricino", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, italský pikantní salám, jalapeños, vajíčko, česnek", s:"32 cm", p:"279 Kč" },
+        { n:"Frutti di mare", d:"rajčata San Marzano D.O.P., mozzarella fior di latte, směs mořských plodů (krevety, slávky, kalamáry, losos)", s:"32 cm", p:"299 Kč" },
+      ]
+    },
+    {
+      cat: "Pasta · Gnocchi · Risotto", icon: "snack",
       items: [
         { n:"Gnocchi al salmone e pistacchio", d:"bramborové gnocchi, jemný pistáciový krém, losos, Parmigiano Reggiano, citronová kůra, drcené pistácie", s:"300 g", p:"329 Kč" },
         { n:"Spaghetti aglio olio", d:"česnek, chilli, petržel, olivový olej, Parmigiano Reggiano", s:"300 g", p:"245 Kč" },
         { n:"Spaghetti al pomodoro e burrata", d:"špagety, rajčata San Marzano D.O.P., česnek, bazalka, burrata, pesto, olivový olej extra vergine", s:"300 g", p:"279 Kč" },
         { n:"Spaghetti carbonara", d:"špagety, guanciale, Pecorino Romano, vaječný žloutek, černý pepř", s:"300 g", p:"265 Kč" },
-        { n:"Tagliatelle al ragù", d:"tagliatelle, pomalu tažené hovězí ragú, rajčata San Marzano D.O.P., pesto, Parmigiano Reggiano", s:"300 g", p:"325 Kč" },
+        { n:"Tagliatelle al ragù", d:"tagliatelle, pomalu tažené hovězí ragù, rajčata San Marzano D.O.P., pesto, Parmigiano Reggiano", s:"300 g", p:"325 Kč" },
         { n:"Gnocchi al gorgonzola e noci", d:"bramborové gnocchi, krém z gorgonzoly, Parmigiano Reggiano, vlašské ořechy, rukola", s:"300 g", p:"299 Kč" },
         { n:"Risotto frutti di mare", d:"krémové šafránové risotto, směs mořských plodů (krevety, slávky, kalamáry, losos)", s:"300 g", p:"325 Kč" },
-      ]
-    },
-    {
-      cat: "Saláty", icon: "snack",
-      items: [
-        { n:"Insalata con prosciutto e stracciatella", d:"burrata, prosciutto crudo, cherry rajčata, rukola, olivy Leccino, bazalka, strouhaný žloutek, olivový olej extra vergine, grilovaný chléb", s:"350 g", p:"225 Kč" },
-        { n:"Insalata pollo e parmigiano", d:"grilované kuřecí prso, mix listových salátů, cherry rajčata, Parmigiano Reggiano, sušená rajčata, citronový dresink, grilovaný chléb", s:"350 g", p:"245 Kč" },
-        { n:"Caesar con salmone", d:"římský salát, Caesar dresink, krutony, grilovaný losos, hoblinky parmazánu", s:"350 g", p:"255 Kč" },
       ]
     },
     {
@@ -1329,8 +1330,6 @@ bistro: {
         { n:"Tiramisù classico", d:"tradiční italské tiramisù, mascarpone, savoiardi, espresso, kakao", p:"139 Kč" },
         { n:"Panna cotta ai frutti di bosco", d:"vanilková panna cotta, omáčka z lesního ovoce, čerstvé ovoce", p:"129 Kč" },
         { n:"Tiramisù al pistacchio", d:"pistáciové tiramisù, mascarpone, savoiardi, pistáciový krém, drcené pistácie", p:"159 Kč" },
-        { n:"Cannoli siciliani", d:"křupavé cannoli, sladká ricotta, pistácie, čokoláda" },
-        { n:"Fragole e mascarpone", d:"jahody, mascarpone krém, pistácie, bazalka" },
       ]
     },
     {
