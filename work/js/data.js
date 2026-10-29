@@ -1148,6 +1148,25 @@ function hideAppLoading() {
   var st = document.getElementById('app-loading-style');
   if (st) st.remove();
 }
+// Databáze (PostgREST) vrací z jednoho dotazu maximálně 1000 řádků. Větší tabulky
+// (rozpis, docházka...) se proto čtou po stránkách - jinak by appka viděla jen
+// část dat, přidávala duplicitní směny a mohla přepsat cizí záznamy.
+async function selectAllRows(table) {
+  var PAGE = 1000, all = [], from = 0;
+  while (true) {
+    var r = await db.from(table).select('*').order('id', { ascending:true }).range(from, from + PAGE - 1);
+    if (r.error) {
+      // tabulka bez sloupce "id" - zkusit jednorázově bez řazení
+      if (from === 0) return await db.from(table).select('*');
+      return { data:null, error:r.error };
+    }
+    var d = r.data || [];
+    all = all.concat(d);
+    if (d.length < PAGE) break;
+    from += PAGE;
+  }
+  return { data:all, error:null };
+}
 async function loadAll() {
   var prvni = !_firstLoadDone;
   if (prvni) showAppLoading();
@@ -1157,27 +1176,27 @@ async function loadAll() {
 async function loadAllInner() {
   await loadSettings(); // ať se hned na začátku načte případné admin nastavení (stanoviště, sazby, ...)
   try {
-    var r = await db.from('schedule').select('*');
+    var r = await selectAllRows('schedule');
     if (r.error) throw r.error;
     SCHEDULE = r.data || [];
     LOAD_OK.schedule = true;
   } catch(e) { LOAD_OK.schedule = false; console.error('Načtení "schedule" selhalo:', e); }
 
-  try { var r2 = await db.from('ucty').select('*'); if (r2.error) throw r2.error; UCTY_POLOZKY = r2.data || []; LOAD_OK.ucty = true; } catch(e) { LOAD_OK.ucty = false; console.error('Načtení "ucty" selhalo:', e); }
-  try { var r3 = await db.from('uklid_log').select('*'); if (r3.error) throw r3.error; UKLID_LOG = r3.data || []; LOAD_OK.uklid_log = true; } catch(e) { LOAD_OK.uklid_log = false; console.error('Načtení "uklid_log" selhalo:', e); }
-  try { var r4 = await db.from('penalizace').select('*'); if (r4.error) throw r4.error; PENALIZACE = r4.data || []; LOAD_OK.penalizace = true; } catch(e) { LOAD_OK.penalizace = false; console.error('Načtení "penalizace" selhalo:', e); }
-  try { var r5 = await db.from('pracovni_dny').select('*'); if (r5.error) throw r5.error; PRACOVNI_DNY = r5.data || []; LOAD_OK.pracovni_dny = true; } catch(e) { LOAD_OK.pracovni_dny = false; console.error('Načtení "pracovni_dny" selhalo:', e); }
+  try { var r2 = await selectAllRows('ucty'); if (r2.error) throw r2.error; UCTY_POLOZKY = r2.data || []; LOAD_OK.ucty = true; } catch(e) { LOAD_OK.ucty = false; console.error('Načtení "ucty" selhalo:', e); }
+  try { var r3 = await selectAllRows('uklid_log'); if (r3.error) throw r3.error; UKLID_LOG = r3.data || []; LOAD_OK.uklid_log = true; } catch(e) { LOAD_OK.uklid_log = false; console.error('Načtení "uklid_log" selhalo:', e); }
+  try { var r4 = await selectAllRows('penalizace'); if (r4.error) throw r4.error; PENALIZACE = r4.data || []; LOAD_OK.penalizace = true; } catch(e) { LOAD_OK.penalizace = false; console.error('Načtení "penalizace" selhalo:', e); }
+  try { var r5 = await selectAllRows('pracovni_dny'); if (r5.error) throw r5.error; PRACOVNI_DNY = r5.data || []; LOAD_OK.pracovni_dny = true; } catch(e) { LOAD_OK.pracovni_dny = false; console.error('Načtení "pracovni_dny" selhalo:', e); }
 
   try {
-    var rw = await db.from('workers').select('*');
+    var rw = await selectAllRows('workers');
     if (rw.error) throw rw.error;
     WORKERS = rw.data || [];
     LOAD_OK.workers = true;
   } catch(e) { LOAD_OK.workers = false; console.error('Načtení "workers" selhalo:', e); }
 
-  try { var rv = await db.from('vyplaty').select('*'); VYPLATY = rv.data || []; } catch(e) { VYPLATY = []; }
-  try { var rtz = await db.from('trzby').select('*'); if (rtz.error) throw rtz.error; TRZBY = rtz.data || []; LOAD_OK.trzby = true; } catch(e) { LOAD_OK.trzby = false; console.error('Načtení "trzby" selhalo:', e); }
-  try { var rnk = await db.from('naklady').select('*'); if (rnk.error) throw rnk.error; NAKLADY = rnk.data || []; LOAD_OK.naklady = true; } catch(e) { LOAD_OK.naklady = false; console.error('Načtení "naklady" selhalo:', e); }
+  try { var rv = await selectAllRows('vyplaty'); VYPLATY = rv.data || []; } catch(e) { VYPLATY = []; }
+  try { var rtz = await selectAllRows('trzby'); if (rtz.error) throw rtz.error; TRZBY = rtz.data || []; LOAD_OK.trzby = true; } catch(e) { LOAD_OK.trzby = false; console.error('Načtení "trzby" selhalo:', e); }
+  try { var rnk = await selectAllRows('naklady'); if (rnk.error) throw rnk.error; NAKLADY = rnk.data || []; LOAD_OK.naklady = true; } catch(e) { LOAD_OK.naklady = false; console.error('Načtení "naklady" selhalo:', e); }
 
   // (Varovný pruh se tu schválně NEukazuje - provozovny, pokladna a další se
   // načítají až v loadVenues() níž a do té doby by pruh zbytečně strašil
@@ -1196,9 +1215,9 @@ async function loadAllInner() {
     }
   } catch(e) { SKLAD_PRODUKTY = JSON.parse(JSON.stringify(SKLAD_PRODUKTY_SEED)); }
 
-  try { var rp = await db.from('sklad_pohyby').select('*'); SKLAD_POHYBY = rp.data || []; } catch(e) { SKLAD_POHYBY = []; }
-  try { var ri = await db.from('sklad_inventury').select('*'); SKLAD_INVENTURY = ri.data || []; } catch(e) { SKLAD_INVENTURY = []; }
-  try { var rpr = await db.from('sklad_prodeje').select('*'); SKLAD_PRODEJE = rpr.data || []; } catch(e) { SKLAD_PRODEJE = []; }
+  try { var rp = await selectAllRows('sklad_pohyby'); SKLAD_POHYBY = rp.data || []; } catch(e) { SKLAD_POHYBY = []; }
+  try { var ri = await selectAllRows('sklad_inventury'); SKLAD_INVENTURY = ri.data || []; } catch(e) { SKLAD_INVENTURY = []; }
+  try { var rpr = await selectAllRows('sklad_prodeje'); SKLAD_PRODEJE = rpr.data || []; } catch(e) { SKLAD_PRODEJE = []; }
 
   await loadVenues();
 }
@@ -1219,7 +1238,7 @@ async function loadVenues() {
   try { var rv = await db.from('venues').select('*').order('poradi'); if (rv.error) throw rv.error; VENUES = (rv.data || []).filter(function(v){ return VENUE_SKRYTE_SLUGY.indexOf(v.slug)===-1; }); LOAD_OK.venues = true; } catch(e) { VENUES = []; LOAD_OK.venues = false; console.error('Načtení "venues" selhalo:', e); }
   try { var rav = await db.from('admin_venues').select('*'); if (rav.error) throw rav.error; ADMIN_VENUES = rav.data || []; LOAD_OK.admin_venues = true; } catch(e) { ADMIN_VENUES = []; LOAD_OK.admin_venues = false; console.error('Načtení "admin_venues" selhalo:', e); }
   try { var rwv = await db.from('worker_venues').select('*'); if (rwv.error) throw rwv.error; WORKER_VENUES = rwv.data || []; LOAD_OK.worker_venues = true; } catch(e) { WORKER_VENUES = []; LOAD_OK.worker_venues = false; console.error('Načtení "worker_venues" selhalo:', e); }
-  try { var rwd = await db.from('worker_dostupnost').select('*'); if (rwd.error) throw rwd.error; WORKER_DOSTUPNOST = rwd.data || []; LOAD_OK.worker_dostupnost = true; } catch(e) { WORKER_DOSTUPNOST = []; LOAD_OK.worker_dostupnost = false; console.error('Načtení "worker_dostupnost" selhalo:', e); }
+  try { var rwd = await selectAllRows('worker_dostupnost'); if (rwd.error) throw rwd.error; WORKER_DOSTUPNOST = rwd.data || []; LOAD_OK.worker_dostupnost = true; } catch(e) { WORKER_DOSTUPNOST = []; LOAD_OK.worker_dostupnost = false; console.error('Načtení "worker_dostupnost" selhalo:', e); }
   try {
     var rs = await db.from('stanoviste').select('*').order('poradi');
     if (rs.error) throw rs.error;
@@ -1232,11 +1251,11 @@ async function loadVenues() {
   } catch(e) { STANOVISTE_ZAKLAD = {}; LOAD_OK.stanoviste = false; console.error('Načtení "stanoviste" selhalo:', e); }
 
   try { var rby = await db.from('byty').select('*').order('id'); if (rby.error) throw rby.error; BYTY = rby.data || []; LOAD_OK.byty = true; } catch(e) { BYTY = []; LOAD_OK.byty = false; console.error('Načtení "byty" selhalo:', e); }
-  try { var rbp = await db.from('byty_platby').select('*'); if (rbp.error) throw rbp.error; BYTY_PLATBY = rbp.data || []; LOAD_OK.byty_platby = true; } catch(e) { BYTY_PLATBY = []; LOAD_OK.byty_platby = false; console.error('Načtení "byty_platby" selhalo:', e); }
-  try { var rpk = await db.from('pokladna').select('*'); if (rpk.error) throw rpk.error; POKLADNA = rpk.data || []; LOAD_OK.pokladna = true; } catch(e) { POKLADNA = []; LOAD_OK.pokladna = false; console.error('Načtení "pokladna" selhalo:', e); }
-  try { var rno = await db.from('naklady_opakovane').select('*'); if (rno.error) throw rno.error; NAKLADY_OPAKOVANE = rno.data || []; LOAD_OK.naklady_opakovane = true; } catch(e) { NAKLADY_OPAKOVANE = []; LOAD_OK.naklady_opakovane = false; console.error('Načtení "naklady_opakovane" selhalo:', e); }
-  try { var rpu = await db.from('pokladna_uzaverky').select('*'); if (rpu.error) throw rpu.error; POKLADNA_UZAVERKY = rpu.data || []; LOAD_OK.pokladna_uzaverky = true; } catch(e) { POKLADNA_UZAVERKY = []; LOAD_OK.pokladna_uzaverky = false; console.error('Načtení "pokladna_uzaverky" selhalo:', e); }
-  try { var rz = await db.from('zalohy').select('*'); if (rz.error) throw rz.error; ZALOHY = rz.data || []; LOAD_OK.zalohy = true; } catch(e) { ZALOHY = []; LOAD_OK.zalohy = false; console.error('Načtení "zalohy" selhalo:', e); }
+  try { var rbp = await selectAllRows('byty_platby'); if (rbp.error) throw rbp.error; BYTY_PLATBY = rbp.data || []; LOAD_OK.byty_platby = true; } catch(e) { BYTY_PLATBY = []; LOAD_OK.byty_platby = false; console.error('Načtení "byty_platby" selhalo:', e); }
+  try { var rpk = await selectAllRows('pokladna'); if (rpk.error) throw rpk.error; POKLADNA = rpk.data || []; LOAD_OK.pokladna = true; } catch(e) { POKLADNA = []; LOAD_OK.pokladna = false; console.error('Načtení "pokladna" selhalo:', e); }
+  try { var rno = await selectAllRows('naklady_opakovane'); if (rno.error) throw rno.error; NAKLADY_OPAKOVANE = rno.data || []; LOAD_OK.naklady_opakovane = true; } catch(e) { NAKLADY_OPAKOVANE = []; LOAD_OK.naklady_opakovane = false; console.error('Načtení "naklady_opakovane" selhalo:', e); }
+  try { var rpu = await selectAllRows('pokladna_uzaverky'); if (rpu.error) throw rpu.error; POKLADNA_UZAVERKY = rpu.data || []; LOAD_OK.pokladna_uzaverky = true; } catch(e) { POKLADNA_UZAVERKY = []; LOAD_OK.pokladna_uzaverky = false; console.error('Načtení "pokladna_uzaverky" selhalo:', e); }
+  try { var rz = await selectAllRows('zalohy'); if (rz.error) throw rz.error; ZALOHY = rz.data || []; LOAD_OK.zalohy = true; } catch(e) { ZALOHY = []; LOAD_OK.zalohy = false; console.error('Načtení "zalohy" selhalo:', e); }
 
   showLoadErrorBannerIfNeeded();
   await ensureOpakovaneNaklady();

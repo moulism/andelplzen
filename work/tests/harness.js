@@ -65,11 +65,12 @@ function makeMockSupabaseClient() {
 
 // Vytvoří NOVÝ, čistý VM kontext s načteným data.js. Volej na začátku
 // každého testu (ne jednou globálně), ať testy na sobě nejsou závislé.
-function freshContext() {
+function freshContext(opts) {
+  opts = opts || {};
   const sandbox = {
     console,
     fetch: async () => ({ ok: false, status: 599, json: async () => ({ error: 'mock: síť je v testech vypnutá' }) }),
-    supabase: { createClient: () => makeMockSupabaseClient() },
+    supabase: { createClient: () => opts.client || makeMockSupabaseClient() },
     document: {
       getElementById() { return null; },
       createElement() { return { style: {}, appendChild() {} }; },
