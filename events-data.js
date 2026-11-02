@@ -121,13 +121,41 @@ const EVENTS = {
       { date: "2026-10-30", title: "Maniac", time: "20:00", desc: "Tři kapely, super večer. MANIAC & RED HOT CHILI BUDWEIS (RHCP REVIVAL) & STAV BEZTÍŽE" },
       { date: "2026-10-31", title: "Lords", time: "20:00", desc: "Když zazní „Smoke on the Water“, víte, že je večer v tom správném stavu. Do Anděla přijedou Lords, kapela z Plzeňska, která už přes 15 let hraje to nejlepší z rockové klasiky 70. a 80. let." },
     ]
-  }
+  },
 
-  /* Příklad, jak přidat další měsíc:
   "2026-11": {
     label: "PROGRAM — LISTOPAD 2026",
     events: [
-      { date:"2026-11-02", title:"...", time:"19:00", price:"...", tickets:true, desc:"..." },
+      { date: "2026-11-02", title: "Na kvíz", time: "19:00", price: "120 Kč na místě", desc: "Hospodský kvíz – poměřte své znalosti s ostatními! Sestavte tým až o 8 hráčích a rezervujte si stůl na www.nakviz.cz." },
+      { date: "2026-11-03", title: "Zakkiss Trio & November 2nd", time: "20:00", price: "300 Kč předprodej / 350 Kč na místě", desc: "November 2nd se vrací do Plzně a tentokrát společně s místními Zakkiss Trio." },
+      { date: "2026-11-04", title: "Ondřej Pivec", time: "20:00", desc: "Srdečně Vás zveme na další koncert držitele ceny Grammy, Ondřeje Pivce, v Plzni! Jde o velmi úspěšného českého varhaníka, klávesistu, producenta a skladatele žijícího již přes 15 let v New Yorku." },
+      { date: "2026-11-05", title: "Hudební kvíz", time: "19:00", price: "120 Kč na místě", desc: "Posloucháš hudbu? Tak slyš! Hudební kvíz v Anděl Music Bar je tady! Čekej 50 otázek ze světa hudby rozdělených do 5 kol a 10 témat – napříč všemi žánry, od pravěku až do současnosti." },
+      { date: "2026-11-06", title: "The Radical Anarchists", time: "18:30", price: "200 Kč na místě / student 150 Kč", desc: "Rádi bychom to s vámi oslavili velkým koncertem v Anděl Music Baru. Budeme vzpomínat na naše začátky, pozveme na pódium několik hostů a budeme hrát a zpívat." },
+      { date: "2026-11-07", title: "Mrakoplaš & MeriT", time: "20:00", desc: "Kapela Mrakoplaš vyráží na oslavu třiceti let na hudební scéně a právě v Plzni odstartuje své výroční turné. První koncert třicetiletých oslav se uskuteční 7. listopadu 2026 od 20:00 v Anděl Music Baru. Mrakoplaš se na pódiu představí společně s plzeňskou kapelou MeriT." },
+      { date: "2026-11-09", title: "Na kvíz", time: "19:00", price: "120 Kč na místě", desc: "Hospodský kvíz – poměřte své znalosti s ostatními! Sestavte tým až o 8 hráčích a rezervujte si stůl na www.nakviz.cz." },
+      { date: "2026-11-11", title: "Triple Crown of Hiking", time: "19:00", desc: "Tři legendární traily v USA. Jedna dvojice s velkým snem a touhou po dobrodružství. 12 000 kilometrů • 24 prošlapaných párů bot • 430 000 metrů převýšení. Tereza Kopecká a její manžel Luboš prošli pěšky všechny tři slavné americké dálkové trasy. Jako první Češka a první český pár tak získali Triple Crown of Hiking." },
+      { date: "2026-11-12", title: "BTNJ", time: "12:00", price: "250 Kč na místě", desc: "Přijď zapařit spodáry. BTNJ se vrací do klubů. A nemohou vynechat milovanou Plzínku." },
+      { date: "2026-11-13", title: "Pondělníci + Jelení Lawyers", time: "19:00", price: "300 Kč na místě", desc: "Nejhorší kapela na světě Pondělníci bohužel stále existuje a znovu se vydává do Plzně ničit českou kultůru průjmovou antihudbou. Čekat můžete zase nový set, kde zazní osvědčené staré hity, ale i nové pecky a možná i pár dosud nevydaných z připravované desky." },
+      { date: "2026-11-14", title: "Kabát Revival Plzeň", time: "20:30", price: "300 Kč předprodej / 350 Kč na místě", desc: "Comeback do plzeňského klubu, kde to zmáčkneme přesně v půl, abyste o nic nepřišli. A bude to, jak je zvykem, pěkně nahlas." },
+      { date: "2026-11-16", title: "Na kvíz", time: "19:00", price: "120 Kč na místě", desc: "Hospodský kvíz – poměřte své znalosti s ostatními! Sestavte tým až o 8 hráčích a rezervujte si stůl na www.nakviz.cz." },
+      { date: "2026-11-17", title: "Autorské čtení básní Martina Šedivého", time: "20:00", price: "vstupné dobrovolné", desc: "Přijďte si poslechnout autorské básně o různých věcech a tématech, které vás přimějí nad určitými věcmi zamyslet se... Básně jsou proložené humorem a prvky stand-upu." },
+      { date: "2026-11-18", title: "Vražda krásy", price: "200 Kč na místě" },
+      { date: "2026-11-19", title: "Pecha Kucha Night | Paměť", time: "18:00", price: "220 Kč předprodej", desc: "Další díl oblíbeného večera krátkých prezentací ve formátu 20 obrázků × 20 vteřin. Tentokrát na téma PAMĚŤ." },
+      { date: "2026-11-20", title: "Dreams of Rust" },
+      { date: "2026-11-21", title: "Space Rave Afterdark", time: "20:00", price: "200 Kč na místě", desc: "Mimo čas a prostor. Sabotage Company Crew startuje v Andělu novou sérii nočních ravů. Jedna noc, deset jmen, tři žánry a žádná gravitace. Drum & bass, techno, house & more až do rána." },
+      { date: "2026-11-23", title: "Na kvíz", time: "19:00", price: "120 Kč na místě", desc: "Hospodský kvíz – poměřte své znalosti s ostatními! Sestavte tým až o 8 hráčích a rezervujte si stůl na www.nakviz.cz." },
+      { date: "2026-11-26", title: "Garyho Hausbót & Trottelparade", time: "20:00", desc: "Gary se probouzí z letního spánku a zve Tě na listopadovou taškařici v Andělu. Tentokrát s Trottelparade heavy-alternative / Praha. Tak neváhej a přijď." },
+      { date: "2026-11-27", title: "Cann", time: "19:00", desc: "Bude to 10 let, co jsem vypustil první nedělní video. 10 let! Uff.. chápeš to? :) Na konci roku vyrazíme s kapelou do čtyřech koutů republiky, kde bych to s váma rád oslavil!" },
+      { date: "2026-11-28", title: "Toyen, Jerusalem, Nebezpečné známosti", time: "19:30", price: "300 Kč předprodej / 350 Kč na místě" },
+      { date: "2026-11-30", title: "Na kvíz", time: "19:00", price: "120 Kč na místě", desc: "Hospodský kvíz – poměřte své znalosti s ostatními! Sestavte tým až o 8 hráčích a rezervujte si stůl na www.nakviz.cz." },
+    ]
+  }
+
+  /* Příklad, jak přidat další měsíc:
+  "2026-12": {
+    label: "PROGRAM — PROSINEC 2026",
+    events: [
+      { date:"2026-12-01", title:"...", time:"19:00", price:"...", tickets:true, desc:"..." },
     ]
   }
   */
