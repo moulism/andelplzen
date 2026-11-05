@@ -10,22 +10,31 @@ window.AndelWeb = (function () {
     return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Prague" });
   }
 
-  /* GET na REST API; při chybě nebo výpadku vrací null (web se pak zobrazí bez dynamických dat) */
-  async function rest(path, timeoutMs) {
+  /* GET na REST API; při chybě to po chvíli zkusí ještě jednou.
+     Když se to nepovede ani napodruhé, vrací null (web se pak zobrazí bez dynamických dat). */
+  async function restOnce(path, timeoutMs) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs || 4000);
+    const t = setTimeout(() => ctrl.abort(), timeoutMs || 10000);
     try {
       const r = await fetch(URL_BASE + "/rest/v1/" + path, {
         headers: { apikey: KEY, Authorization: "Bearer " + KEY },
+        cache: "no-store",
         signal: ctrl.signal
       });
-      if (!r.ok) return null;
+      if (!r.ok) { console.warn("[AndelWeb] " + path.split("?")[0] + ": HTTP " + r.status); return null; }
       return await r.json();
     } catch (e) {
+      console.warn("[AndelWeb] " + path.split("?")[0] + ": " + (e && e.name === "AbortError" ? "vypršel čas" : e));
       return null;
     } finally {
       clearTimeout(t);
     }
+  }
+  async function rest(path, timeoutMs) {
+    const first = await restOnce(path, timeoutMs);
+    if (first !== null) return first;
+    await new Promise(res => setTimeout(res, 800));
+    return restOnce(path, timeoutMs);
   }
 
   /* Klíč položky menu: prostor::kategorie::název */

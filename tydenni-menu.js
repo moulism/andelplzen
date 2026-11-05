@@ -76,7 +76,12 @@
     );
     root.innerHTML = "";
     if (rows === null) {
-      root.appendChild(el("p", "weekly-empty", "Týdenní menu se teď nepodařilo načíst. Zkuste to prosím za chvíli."));
+      root.appendChild(el("p", "weekly-empty", "Týdenní menu se teď nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu."));
+      const again = el("button", "program-btn", "Zkusit znovu");
+      again.type = "button";
+      again.addEventListener("click", load);
+      const wrap = el("p", "weekly-empty"); wrap.appendChild(again);
+      root.appendChild(wrap);
     } else if (!rows.length) {
       root.appendChild(el("p", "weekly-empty", "Týdenní menu zatím není zveřejněné. Sledujte nás na sociálních sítích, ať vám nic neuteče."));
     } else {
