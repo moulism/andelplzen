@@ -1087,8 +1087,8 @@ footer{
 .weekly-head h3{margin:0;font-size:24px}
 .weekly-dates{color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1.5px}
 .weekly-list{display:block !important}
-.weekly-file{display:inline-block;margin-top:14px;color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px}
-.weekly-image{display:block;max-width:100%;height:auto;margin-top:16px}
+.weekly-file{display:table;margin-left:auto;margin-right:auto;margin-top:14px;color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px}
+.weekly-image{display:block;max-width:100%;height:auto;margin:16px auto 0}
 .weekly-empty{text-align:center;color:var(--muted);padding:40px 10px}
 .weekly-fixed{text-align:center;margin-top:10px}
 .weekly-fixed a{color:var(--gold);font-size:13px;text-transform:uppercase;letter-spacing:1px}
