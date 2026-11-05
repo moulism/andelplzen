@@ -1,14 +1,10 @@
 /* ==========================================================================
-   Anděl Music Bar — program
+   Anděl Music Bar — program: ZÁLOŽNÍ DATA
    -----------------------------------------------------------------------
-   Program se aktualizuje každý měsíc: přidej nový klíč "YYYY-MM" s polem
-   akcí a stránka ho zobrazí automaticky, jakmile začne daný měsíc.
-   Pokud aktuální měsíc ještě není vyplněný, zobrazí se poslední připravený
-   program (ať stránka nikdy není prázdná).
-
-   Jedna akce: { date:"YYYY-MM-DD", title, time, price, place, desc }
-   - price, place a tickets jsou nepovinné.
-   - tickets:true = u akce se zobrazí tlačítko „Koupit vstupenku“ (vede na widget SMS Ticket).
+   Program se od listopadu 2026 upravuje v administraci webu (admin.html →
+   záložka „Program Clubu“) a ukládá se do databáze (tabulka web_program_months).
+   Tenhle soubor se použije jen tehdy, když databáze zrovna neodpovídá.
+   Není potřeba ho dál aktualizovat.
    ========================================================================== */
 
 const EVENTS = {

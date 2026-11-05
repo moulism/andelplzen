@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Správa webu | Anděl Plzeň</title>
-<link rel="stylesheet" href="style.css?v=20261025c">
+<link rel="stylesheet" href="style.css?v=20261105b">
 <link rel="icon" href="favicon.ico" sizes="any">
 <style>
 .adm{max-width:1000px;margin:0 auto;padding:130px 20px 80px;color:var(--text)}
@@ -55,6 +55,22 @@
 .photo-card .thumb img{width:100%;height:100%;object-fit:cover}
 .photo-card .nm{font-size:14px;line-height:1.3;min-height:36px}
 .photo-card .own{color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.ev-row{border:1px solid #2a2a2a;background:#101010;padding:14px;margin:0 0 12px}
+.ev-row .ev-grid{display:grid;grid-template-columns:150px 1fr 100px;gap:10px}
+.ev-row .ev-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.ev-row input,.ev-row textarea{margin:0}
+.ev-row textarea{margin-top:10px;min-height:60px}
+.ev-row .ev-foot{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:space-between;margin-top:8px}
+.ev-row .ev-foot label{margin:0;display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text)}
+.ev-row .ev-foot label input{width:auto}
+.ev-row.is-past{opacity:.6}
+.month-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 6px}
+.month-tabs button{background:transparent;border:1px solid #333;color:var(--muted);padding:10px 16px;font:inherit;font-size:13px;cursor:pointer;text-align:left}
+.month-tabs button small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+.month-tabs button.active,.month-tabs button:hover{border-color:var(--gold);color:var(--gold)}
+.month-tabs button.active{background:rgba(201,164,92,.08)}
+.month-tabs button.is-pub small{color:#8d9}
+.month-tabs button.add{border-style:dashed}
 .hidden{display:none !important}
 .userbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px;color:var(--muted);font-size:14px}
 .userbar b{color:var(--text);font-weight:500}
@@ -63,6 +79,7 @@
   .adm .row,.adm .row3{grid-template-columns:1fr}
   .item-row{grid-template-columns:64px 1fr;}
   .item-row .acts{flex-direction:row;grid-column:1 / -1}
+  .ev-row .ev-grid,.ev-row .ev-grid2{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -77,7 +94,7 @@
 
 <main class="adm">
   <h1>Správa webu</h1>
-  <p class="sub">Týdenní menu, fotky k jídlům a pitím a správci webu.</p>
+  <p class="sub">Program Music Clubu, týdenní menu, fotky k jídlům a pitím a správci webu.</p>
 
   <div id="loading" class="msg info">Načítám…</div>
 
@@ -167,15 +184,53 @@
     <div class="userbar"><span>Přihlášen/a: <b id="u-email"></b></span><button class="btn ghost small" id="btn-logout">Odhlásit</button></div>
 
     <div class="adm-tabs" id="admin-tabs">
-      <button data-t="menu" class="active">Týdenní menu</button>
+      <button data-t="program" class="active">Program Clubu</button>
+      <button data-t="menu">Týdenní menu</button>
       <button data-t="photos">Fotky k položkám</button>
       <button data-t="admins">Správci</button>
       <button data-t="account">Účet a aplikace</button>
       <button data-t="help">Nápověda</button>
     </div>
 
+    <!-- PROGRAM CLUBU -->
+    <div id="tab-program">
+      <div class="adm-card">
+        <h2>Program Music Clubu</h2>
+        <p class="hint" style="margin-top:0">Vyber měsíc. Na webu se ukazují jen zveřejněné měsíce — aktuální a budoucí. Když je zveřejněných víc, návštěvníci si mezi nimi přepínají.</p>
+        <div class="month-tabs" id="pg-months"></div>
+        <div id="pg-list-msg"></div>
+      </div>
+
+      <div class="adm-card hidden" id="pg-new">
+        <h2>Nový měsíc programu</h2>
+        <label for="pg-new-month">Měsíc</label>
+        <input type="month" id="pg-new-month" style="width:100%;background:#0f0f0f;border:1px solid #333;color:var(--text);padding:11px 12px;font:inherit;font-size:15px">
+        <div id="pg-new-msg"></div>
+        <button class="btn" id="pg-new-create">Založit</button>
+        <button class="btn ghost" id="pg-new-cancel">Zavřít</button>
+      </div>
+
+      <div class="adm-card hidden" id="pg-editor">
+        <h2 id="pg-title">Program</h2>
+        <label for="pg-label">Nadpis na webu</label>
+        <input type="text" id="pg-label" maxlength="80">
+        <label style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:var(--text)">
+          <input type="checkbox" id="pg-pub" style="width:auto"> Zobrazovat na webu
+        </label>
+
+        <h3>Akce</h3>
+        <div id="pg-events"></div>
+        <button class="btn ghost small" id="pg-add">+ Přidat akci</button>
+        <p class="hint">Povinné je jen datum a název. Akce se na webu samy seřadí podle data. Cenu piš, jak chceš (např. „300 Kč předprodej / 350 Kč na místě“).</p>
+
+        <div id="pg-msg"></div>
+        <button class="btn" id="pg-save">Uložit</button>
+        <button class="btn danger" id="pg-del">Smazat celý měsíc</button>
+      </div>
+    </div>
+
     <!-- TÝDENNÍ MENU -->
-    <div id="tab-menu">
+    <div id="tab-menu" class="hidden">
       <div class="adm-card">
         <h2>Týdenní menu</h2>
         <div id="menu-list"></div>
@@ -285,6 +340,7 @@
     <div id="tab-help" class="hidden">
       <div class="adm-card">
         <h2>Jak to funguje</h2>
+        <p><b>Program Clubu.</b> V záložce Program Clubu klikni na měsíc (aktuální nebo budoucí), nebo založ další tlačítkem „+ Další měsíc“. Přidávej akce, ulož, a zaškrtnutím „Zobrazovat na webu“ měsíc zveřejníš. Na webu se ukazuje jen aktuální a budoucí zveřejněný program; když je zveřejněných měsíců víc, návštěvníci si mezi nimi přepínají. Proběhlé akce v aktuálním měsíci na webu zešednou.</p>
         <p><b>Týdenní menu.</b> Týdenní menu je jen pro Bistro. Založ menu, nastav, od kdy do kdy platí, a vyplň položky. Na webu se samo ukáže v den „od“ a samo zmizí po dni „do“. Tlačítkem „Zkopírovat na další týden“ si ušetříš práci — zkopíruje položky a posune data o 7 dní.</p>
         <p><b>Fotky k položkám.</b> V záložce Fotky vyber menu a kategorii a u položky nahraj fotku. Obrázky se při nahrání samy zmenší, takže stačí fotka z telefonu.</p>
         <p><b>Správci.</b> Admini z aplikace pro brigádníky (role admin) se přihlásí rovnou jménem a PINem, nic nastavovat nemusí. Ostatní se zaregistrují e-mailem, potvrdí ho a ty jejich e-mail přidáš v záložce Správci.</p>
@@ -342,7 +398,7 @@
     $("u-email").textContent = viaPin ? ((user.user_metadata && user.user_metadata.name) || "admin") + " (PIN)" : user.email;
     show("acc-link", !viaPin); show("acc-pass", !viaPin); show("acc-pin", viaPin);
     show("view-admin", true);
-    loadMenus(); loadAdmins(); initPhotos();
+    loadProgram(); loadMenus(); loadAdmins(); initPhotos();
   }
 
   /* ---------- přihlášení ---------- */
@@ -406,7 +462,7 @@
   /* ---------- záložky ---------- */
   document.querySelectorAll("#admin-tabs button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll("#admin-tabs button").forEach(x => x.classList.toggle("active", x === b));
-    ["menu", "photos", "admins", "account", "help"].forEach(t => show("tab-" + t, t === b.dataset.t));
+    ["program", "menu", "photos", "admins", "account", "help"].forEach(t => show("tab-" + t, t === b.dataset.t));
   }));
 
   /* ---------- obrázky ---------- */
@@ -453,6 +509,138 @@
     const p = storagePathOf(url);
     if (p) { try { await db.storage.from("web-media").remove([p]); } catch (e) {} }
   }
+
+  /* ================= PROGRAM CLUBU ================= */
+  const MONTHS_CS = ["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+  let pgRows = [], pgEdit = null; // pgEdit: {month, exists, events:[]}
+  function thisMonth() { return AndelWeb.today().slice(0, 7); }
+  function monthName(k) { const p = k.split("-"); return MONTHS_CS[parseInt(p[1], 10) - 1] + " " + p[0]; }
+  function defaultLabel(k) { return "PROGRAM — " + monthName(k).toUpperCase(); }
+  function nextMonth(k) { let [y, m] = k.split("-").map(Number); m++; if (m > 12) { m = 1; y++; } return y + "-" + String(m).padStart(2, "0"); }
+  function lastDay(k) { const [y, m] = k.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+
+  async function loadProgram(openMonth) {
+    const cur = thisMonth();
+    const { data, error } = await db.from("web_program_months").select("*").gte("month", cur).order("month");
+    if (error) { msg("pg-list-msg", errText(error), "err"); return; }
+    msg("pg-list-msg", "");
+    pgRows = data || [];
+    renderMonthTabs();
+    const want = openMonth || (pgEdit && pgEdit.month) || (pgRows[0] && pgRows[0].month);
+    const row = pgRows.find(r => r.month === want);
+    if (row) openProgram(row); else if (!pgRows.length) { show("pg-editor", false); msg("pg-list-msg", "Zatím žádný program na tento ani další měsíce. Založ ho tlačítkem „+ Další měsíc“.", "info"); }
+  }
+  function renderMonthTabs() {
+    const box = $("pg-months"); box.innerHTML = "";
+    const cur = thisMonth();
+    pgRows.forEach(r => {
+      const b = el("button", r.published ? "is-pub" : "");
+      b.type = "button"; b.dataset.m = r.month;
+      b.appendChild(document.createTextNode(monthName(r.month).replace(/^./, c => c.toUpperCase())));
+      b.appendChild(el("small", null, (r.month === cur ? "aktuální · " : "") + (r.published ? "na webu" : "skryto") + " · " + (r.events || []).length + " akcí"));
+      if (pgEdit && pgEdit.month === r.month) b.classList.add("active");
+      b.addEventListener("click", () => openProgram(r));
+      box.appendChild(b);
+    });
+    const add = el("button", "add", "+ Další měsíc"); add.type = "button";
+    add.addEventListener("click", openNewMonth);
+    box.appendChild(add);
+  }
+  function openNewMonth() {
+    const cur = thisMonth();
+    let k = cur; while (pgRows.some(r => r.month === k)) k = nextMonth(k);
+    $("pg-new-month").min = cur; $("pg-new-month").value = k;
+    msg("pg-new-msg", "");
+    show("pg-new", true);
+    $("pg-new").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  $("pg-new-cancel").addEventListener("click", () => show("pg-new", false));
+  $("pg-new-create").addEventListener("click", async () => {
+    const k = $("pg-new-month").value;
+    if (!/^\d{4}-\d{2}$/.test(k)) return msg("pg-new-msg", "Vyber měsíc.", "err");
+    if (k < thisMonth()) return msg("pg-new-msg", "Program jde zakládat jen na aktuální nebo budoucí měsíc.", "err");
+    if (pgRows.some(r => r.month === k)) { show("pg-new", false); return openProgram(pgRows.find(r => r.month === k)); }
+    const { data, error } = await db.from("web_program_months").insert({ month: k, label: defaultLabel(k), published: false, events: [], updated_by: user.email }).select().single();
+    if (error) return msg("pg-new-msg", errText(error), "err");
+    show("pg-new", false);
+    await loadProgram(data.month);
+    msg("pg-msg", "Měsíc založen (zatím skrytý). Přidej akce a zaškrtni „Zobrazovat na webu“.", "info");
+  });
+
+  function openProgram(r) {
+    pgEdit = { month: r.month, events: JSON.parse(JSON.stringify(r.events || [])) };
+    pgEdit.events.sort((a, b) => ((a.date || "") + (a.time || "")).localeCompare((b.date || "") + (b.time || "")));
+    $("pg-title").textContent = "Program — " + monthName(r.month);
+    $("pg-label").value = r.label || defaultLabel(r.month);
+    $("pg-pub").checked = !!r.published;
+    msg("pg-msg", "");
+    renderEvents(); renderMonthTabs();
+    show("pg-editor", true);
+  }
+  function renderEvents() {
+    const box = $("pg-events"); box.innerHTML = "";
+    const t = AndelWeb.today();
+    const min = pgEdit.month + "-01", max = pgEdit.month + "-" + String(lastDay(pgEdit.month)).padStart(2, "0");
+    if (!pgEdit.events.length) box.appendChild(el("p", "hint", "Zatím žádné akce."));
+    pgEdit.events.forEach((ev, idx) => {
+      const row = el("div", "ev-row" + (ev.date && ev.date < t ? " is-past" : ""));
+      const inp = (type, ph, key, max) => { const i = el(type === "textarea" ? "textarea" : "input"); if (type !== "textarea") i.type = type; i.placeholder = ph; if (max) i.maxLength = max; i.value = ev[key] || ""; i.addEventListener("input", () => ev[key] = i.value); return i; };
+      const g = el("div", "ev-grid");
+      const d = inp("date", "", "date"); d.min = min; d.max = max;
+      g.appendChild(d); g.appendChild(inp("text", "Název akce", "title", 140)); g.appendChild(inp("text", "Čas (20:00)", "time", 12));
+      row.appendChild(g);
+      const g2 = el("div", "ev-grid2");
+      g2.appendChild(inp("text", "Vstupné (volitelné)", "price", 90)); g2.appendChild(inp("text", "Místo (volitelné, např. venkovní dvorek)", "place", 80));
+      row.appendChild(g2);
+      row.appendChild(inp("textarea", "Popis (volitelné)", "desc", 1200));
+      const foot = el("div", "ev-foot");
+      const lab = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.checked = !!ev.tickets; cb.addEventListener("change", () => ev.tickets = cb.checked);
+      lab.appendChild(cb); lab.appendChild(document.createTextNode("Tlačítko „Koupit vstupenku“ (SMS Ticket)"));
+      foot.appendChild(lab);
+      const acts = el("div");
+      acts.appendChild(btn("↑", "ghost small", () => { if (idx > 0) { const x = pgEdit.events; [x[idx - 1], x[idx]] = [x[idx], x[idx - 1]]; renderEvents(); } }));
+      acts.appendChild(btn("↓", "ghost small", () => { const x = pgEdit.events; if (idx < x.length - 1) { [x[idx + 1], x[idx]] = [x[idx], x[idx + 1]]; renderEvents(); } }));
+      acts.appendChild(btn("Duplikovat", "ghost small", () => { pgEdit.events.splice(idx + 1, 0, Object.assign({}, ev)); renderEvents(); }));
+      acts.appendChild(btn("✕ Smazat", "danger small", () => { if (confirm("Smazat akci „" + (ev.title || "bez názvu") + "“?")) { pgEdit.events.splice(idx, 1); renderEvents(); } }));
+      foot.appendChild(acts);
+      row.appendChild(foot);
+      box.appendChild(row);
+    });
+  }
+  $("pg-add").addEventListener("click", () => {
+    const last = pgEdit.events[pgEdit.events.length - 1];
+    pgEdit.events.push({ date: last && last.date ? last.date : pgEdit.month + "-01", title: "", time: last ? (last.time || "") : "20:00" });
+    renderEvents();
+    const rows = $("pg-events").querySelectorAll(".ev-row");
+    if (rows.length) rows[rows.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  $("pg-save").addEventListener("click", async () => {
+    const clean = [];
+    for (const ev of pgEdit.events) {
+      const o = {}; ["date", "title", "time", "price", "place", "desc"].forEach(k => { const v = (ev[k] || "").trim(); if (v) o[k] = v; });
+      if (!o.title && !o.date) continue;
+      if (!o.title) return msg("pg-msg", "Akce " + (o.date ? fmt(o.date) : "") + " nemá název.", "err");
+      if (!o.date || o.date.slice(0, 7) !== pgEdit.month) return msg("pg-msg", "Akce „" + o.title + "“ má datum mimo " + monthName(pgEdit.month) + ".", "err");
+      if (ev.tickets) o.tickets = true;
+      clean.push(o);
+    }
+    clean.sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+    const pub = $("pg-pub").checked;
+    if (pub && !clean.length) return msg("pg-msg", "Prázdný měsíc nejde zveřejnit — přidej aspoň jednu akci.", "err");
+    $("pg-save").disabled = true;
+    const { error } = await db.from("web_program_months").update({ label: $("pg-label").value.trim() || defaultLabel(pgEdit.month), published: pub, events: clean, updated_by: user.email, updated_at: new Date().toISOString() }).eq("month", pgEdit.month);
+    $("pg-save").disabled = false;
+    if (error) return msg("pg-msg", errText(error), "err");
+    await loadProgram(pgEdit.month);
+    msg("pg-msg", pub ? "Uloženo a zobrazeno na webu." : "Uloženo (na webu skryté).", "ok");
+  });
+  $("pg-del").addEventListener("click", async () => {
+    if (!confirm("Opravdu smazat celý program na " + monthName(pgEdit.month) + "? Tohle nejde vrátit.")) return;
+    const { error } = await db.from("web_program_months").delete().eq("month", pgEdit.month);
+    if (error) return msg("pg-msg", errText(error), "err");
+    pgEdit = null; show("pg-editor", false);
+    loadProgram();
+  });
 
   /* ================= TÝDENNÍ MENU ================= */
   let menus = [], editing = null; // editing: {id|null, items:[], file_url}

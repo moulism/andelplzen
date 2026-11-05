@@ -1105,3 +1105,21 @@ footer{
 .staff-steps em{color:var(--gold);font-style:normal}
 .staff-hint{margin-top:14px}
 .hint{color:var(--muted);font-size:13px}
+
+/* Program — přepínač měsíců */
+.program-switch{margin:0 0 30px}
+.program-switch button{
+    font:inherit;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    padding:10px 20px;
+    border:1px solid #333;
+    background:transparent;
+    color:var(--muted);
+    cursor:pointer;
+    transition:.25s;
+}
+.program-switch button:hover,
+.program-switch button.active{border-color:var(--gold);color:var(--gold)}
+.program-switch button.active{background:rgba(201,164,92,.08)}
