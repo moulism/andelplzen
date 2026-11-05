@@ -44,7 +44,9 @@
 .pill{display:inline-block;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:2px 9px;border:1px solid #444;color:var(--muted);margin-left:8px}
 .pill.on{border-color:#4a7;color:#8d9}
 .pill.cur{border-color:var(--gold);color:var(--gold)}
-.item-row{display:grid;grid-template-columns:64px 1.4fr 2fr 110px auto;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid #2a2a2a}
+.item-row{display:grid;grid-template-columns:64px 1fr 130px auto;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid #2a2a2a}
+.item-row .txt{display:flex;flex-direction:column;gap:8px;min-width:0}
+.adm textarea.grow{min-height:0;resize:none;overflow:hidden;line-height:1.4}
 .item-row .ph{width:64px;height:64px;background:#0f0f0f;border:1px dashed #444;display:flex;align-items:center;justify-content:center;color:#666;font-size:11px;text-align:center;cursor:pointer;overflow:hidden}
 .item-row .ph img{width:100%;height:100%;object-fit:cover}
 .item-row .acts{display:flex;flex-direction:column;gap:4px}
@@ -734,10 +736,13 @@
       });
       ph.addEventListener("click", () => fi.click());
       row.appendChild(ph); row.appendChild(fi);
-      const n = el("input"); n.type = "text"; n.placeholder = "Název"; n.maxLength = 300; n.value = it.n || ""; n.addEventListener("input", () => it.n = n.value);
-      const d = el("input"); d.type = "text"; d.placeholder = "Popis (volitelné)"; d.maxLength = 1000; d.value = it.d || ""; d.addEventListener("input", () => it.d = d.value);
+      const grow = t => { t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; };
+      const n = el("textarea", "grow"); n.rows = 1; n.placeholder = "Název"; n.maxLength = 300; n.value = it.n || ""; n.addEventListener("input", () => { it.n = n.value; grow(n); });
+      const d = el("textarea", "grow"); d.rows = 1; d.placeholder = "Popis (volitelné)"; d.maxLength = 1000; d.value = it.d || ""; d.addEventListener("input", () => { it.d = d.value; grow(d); });
+      requestAnimationFrame(() => { grow(n); grow(d); });
       const p = el("input"); p.type = "text"; p.placeholder = "Cena"; p.maxLength = 80; p.value = it.p || ""; p.addEventListener("input", () => it.p = p.value);
-      row.appendChild(n); row.appendChild(d); row.appendChild(p);
+      const txt = el("div", "txt"); txt.appendChild(n); txt.appendChild(d);
+      row.appendChild(txt); row.appendChild(p);
       const acts = el("div", "acts");
       const up = btn("↑", "ghost small", () => { if (idx > 0) { const x = editing.items; [x[idx - 1], x[idx]] = [x[idx], x[idx - 1]]; renderItems(); } });
       const dn = btn("↓", "ghost small", () => { const x = editing.items; if (idx < x.length - 1) { [x[idx + 1], x[idx]] = [x[idx], x[idx + 1]]; renderItems(); } });
