@@ -213,7 +213,7 @@
       <div class="adm-card hidden" id="pg-editor">
         <h2 id="pg-title">Program</h2>
         <label for="pg-label">Nadpis na webu</label>
-        <input type="text" id="pg-label" maxlength="80">
+        <input type="text" id="pg-label" maxlength="200">
         <label style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-size:15px;color:var(--text)">
           <input type="checkbox" id="pg-pub" style="width:auto"> Zobrazovat na webu
         </label>
@@ -246,7 +246,7 @@
           <div><label for="me-to">Platí do</label><input type="date" id="me-to"></div>
         </div>
         <label for="me-name">Nadpis</label>
-        <input type="text" id="me-name" maxlength="80" value="Týdenní menu">
+        <input type="text" id="me-name" maxlength="200" value="Týdenní menu">
 
         <h3>Položky</h3>
         <div id="me-items"></div>
@@ -254,7 +254,7 @@
         <p class="hint">Cena se píše jak chceš (např. „159 Kč“). Foto je volitelné — klikni na čtvereček vlevo.</p>
 
         <label for="me-note">Poznámka pod menu (volitelné – alergeny, platnost, …)</label>
-        <textarea id="me-note" maxlength="500"></textarea>
+        <textarea id="me-note" maxlength="3000"></textarea>
 
         <label>Celé menu jako fotka nebo PDF (volitelné)</label>
         <div id="me-file-info" class="hint"></div>
@@ -299,7 +299,7 @@
           <label for="aa-email">Přidat správce (e-mail)</label>
           <input type="email" id="aa-email" required>
           <label for="aa-note">Poznámka (kdo to je)</label>
-          <input type="text" id="aa-note" maxlength="80">
+          <input type="text" id="aa-note" maxlength="200">
           <button class="btn" type="submit">Přidat</button>
         </form>
         <div id="adm-msg"></div>
@@ -587,12 +587,12 @@
       const inp = (type, ph, key, max) => { const i = el(type === "textarea" ? "textarea" : "input"); if (type !== "textarea") i.type = type; i.placeholder = ph; if (max) i.maxLength = max; i.value = ev[key] || ""; i.addEventListener("input", () => ev[key] = i.value); return i; };
       const g = el("div", "ev-grid");
       const d = inp("date", "", "date"); d.min = min; d.max = max;
-      g.appendChild(d); g.appendChild(inp("text", "Název akce", "title", 140)); g.appendChild(inp("text", "Čas (20:00)", "time", 12));
+      g.appendChild(d); g.appendChild(inp("text", "Název akce", "title", 300)); g.appendChild(inp("text", "Čas (20:00)", "time", 40));
       row.appendChild(g);
       const g2 = el("div", "ev-grid2");
-      g2.appendChild(inp("text", "Vstupné (volitelné)", "price", 90)); g2.appendChild(inp("text", "Místo (volitelné, např. venkovní dvorek)", "place", 80));
+      g2.appendChild(inp("text", "Vstupné (volitelné)", "price", 200)); g2.appendChild(inp("text", "Místo (volitelné, např. venkovní dvorek)", "place", 200));
       row.appendChild(g2);
-      row.appendChild(inp("textarea", "Popis (volitelné)", "desc", 1200));
+      row.appendChild(inp("textarea", "Popis (volitelné)", "desc", 4000));
       const foot = el("div", "ev-foot");
       const lab = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.checked = !!ev.tickets; cb.addEventListener("change", () => ev.tickets = cb.checked);
       lab.appendChild(cb); lab.appendChild(document.createTextNode("Tlačítko „Koupit vstupenku“ (SMS Ticket)"));
@@ -734,9 +734,9 @@
       });
       ph.addEventListener("click", () => fi.click());
       row.appendChild(ph); row.appendChild(fi);
-      const n = el("input"); n.type = "text"; n.placeholder = "Název"; n.maxLength = 90; n.value = it.n || ""; n.addEventListener("input", () => it.n = n.value);
-      const d = el("input"); d.type = "text"; d.placeholder = "Popis (volitelné)"; d.maxLength = 200; d.value = it.d || ""; d.addEventListener("input", () => it.d = d.value);
-      const p = el("input"); p.type = "text"; p.placeholder = "Cena"; p.maxLength = 20; p.value = it.p || ""; p.addEventListener("input", () => it.p = p.value);
+      const n = el("input"); n.type = "text"; n.placeholder = "Název"; n.maxLength = 300; n.value = it.n || ""; n.addEventListener("input", () => it.n = n.value);
+      const d = el("input"); d.type = "text"; d.placeholder = "Popis (volitelné)"; d.maxLength = 1000; d.value = it.d || ""; d.addEventListener("input", () => it.d = d.value);
+      const p = el("input"); p.type = "text"; p.placeholder = "Cena"; p.maxLength = 80; p.value = it.p || ""; p.addEventListener("input", () => it.p = p.value);
       row.appendChild(n); row.appendChild(d); row.appendChild(p);
       const acts = el("div", "acts");
       const up = btn("↑", "ghost small", () => { if (idx > 0) { const x = editing.items; [x[idx - 1], x[idx]] = [x[idx], x[idx - 1]]; renderItems(); } });
