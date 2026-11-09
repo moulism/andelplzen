@@ -1123,3 +1123,19 @@ footer{
 .program-switch button:hover,
 .program-switch button.active{border-color:var(--gold);color:var(--gold)}
 .program-switch button.active{background:rgba(201,164,92,.08)}
+
+/* ===== BISTRO GALLERY + LIGHTBOX ===== */
+.gallery--bistro{grid-template-columns:repeat(4,1fr);gap:14px}
+.gallery--bistro .gallery-item{display:block;overflow:hidden;cursor:zoom-in}
+.gallery--bistro img{height:240px;transition:transform .5s ease}
+.gallery--bistro .gallery-item:hover img{transform:scale(1.05)}
+.lightbox{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:40px 60px}
+.lightbox[hidden]{display:none}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.lightbox button{position:absolute;background:none;border:0;color:#fff;font-size:44px;line-height:1;cursor:pointer;padding:10px 14px;opacity:.8}
+.lightbox button:hover{opacity:1}
+.lb-close{top:10px;right:14px}
+.lb-prev{left:6px;top:50%;transform:translateY(-50%)}
+.lb-next{right:6px;top:50%;transform:translateY(-50%)}
+@media(max-width:1080px){.gallery--bistro{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.gallery--bistro{grid-template-columns:repeat(2,1fr);gap:8px}.gallery--bistro img{height:160px}.lightbox{padding:50px 10px}}

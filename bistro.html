@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anděl Bistro | Anděl Plzeň</title>
 <meta name="description" content="Poctivá gastronomie z kvalitních a farmářských surovin — čerstvá jídla, rychlé obědy i lehké občerstvení.">
-<link rel="stylesheet" href="style.css?v=20261105c">
+<link rel="stylesheet" href="style.css?v=20261109a">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="192x192" href="images/favicon-192.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
@@ -30,7 +30,7 @@
     </nav>
 </header>
 
-<section class="venue-hero" style="background-image:url('images/bistro.png')">
+<section class="venue-hero" style="background-image:url('images/bistro/prostor-01.jpg')">
     <div class="venue-hero-content" data-animate>
         <p class="crumbs" aria-label="Kde jste"><a href="index.html">Domů</a><span class="crumb-sep">›</span><span class="crumb-here">Bistro</span></p>
         <h1>Anděl Bistro</h1>
@@ -75,10 +75,19 @@
 
 <section class="section-tight">
 <h3 data-animate>Atmosféra Anděl Bistra</h3>
-<div class="gallery">
-    <img data-animate src="images/bistro.png" alt="Jídlo v Anděl Bistru">
-    <img data-animate src="images/bistro-2.png" alt="Farmářské suroviny v Anděl Bistru">
-    <img data-animate src="images/bistro-3.png" alt="Posezení v Anděl Bistru">
+<div class="gallery gallery--bistro">
+    <a href="images/bistro/prostor-01.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-01.jpg" alt="Interiér Anděl Bistra s prostřenými stoly" loading="lazy"></a>
+    <a href="images/bistro/prostor-09.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-09.jpg" alt="Posezení u oken v Anděl Bistru" loading="lazy"></a>
+    <a href="images/bistro/prostor-17.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-17.jpg" alt="Jídelna Anděl Bistra" loading="lazy"></a>
+    <a href="images/bistro/prostor-22.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-22.jpg" alt="Prostorný sál Anděl Bistra" loading="lazy"></a>
+    <a href="images/bistro/prostor-27.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-27.jpg" alt="Prostřený stůl a vitríny s dezerty" loading="lazy"></a>
+    <a href="images/bistro/prostor-33.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-33.jpg" alt="Bar Anděl Bistra" loading="lazy"></a>
+    <a href="images/bistro/prostor-38.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-38.jpg" alt="Kožená křesla a prostřený stůl" loading="lazy"></a>
+    <a href="images/bistro/prostor-41.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-41.jpg" alt="Detail stolu s květinami a lampičkou" loading="lazy"></a>
+    <a href="images/bistro/prostor-46.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-46.jpg" alt="Menu Anděl Bistra na stole" loading="lazy"></a>
+    <a href="images/bistro/prostor-54.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-54.jpg" alt="Italské dezerty ve vitríně" loading="lazy"></a>
+    <a href="images/bistro/prostor-58.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-58.jpg" alt="Dezerty s lesním ovocem" loading="lazy"></a>
+    <a href="images/bistro/prostor-59.jpg" class="gallery-item" data-animate><img src="images/bistro/prostor-59.jpg" alt="Domácí tiramisu" loading="lazy"></a>
 </div>
 </section>
 
@@ -118,6 +127,27 @@
     <p class="footer-note">© 2026 Anděl Plzeň — Café · Music Club · Dvorek · Bistro · Station</p>
 </footer>
 
+<div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" aria-label="Zavřít">×</button>
+    <button class="lb-prev" aria-label="Předchozí">‹</button>
+    <img alt="">
+    <button class="lb-next" aria-label="Další">›</button>
+</div>
+<script>
+(function(){
+    const links=[...document.querySelectorAll('.gallery--bistro a')];
+    const lb=document.getElementById('lightbox'), img=lb.querySelector('img');
+    let i=0;
+    const show=n=>{i=(n+links.length)%links.length;img.src=links[i].href;img.alt=links[i].querySelector('img').alt;lb.hidden=false;document.body.style.overflow='hidden'};
+    const hide=()=>{lb.hidden=true;document.body.style.overflow=''};
+    links.forEach((a,n)=>a.addEventListener('click',e=>{e.preventDefault();show(n)}));
+    lb.querySelector('.lb-close').onclick=hide;
+    lb.querySelector('.lb-prev').onclick=e=>{e.stopPropagation();show(i-1)};
+    lb.querySelector('.lb-next').onclick=e=>{e.stopPropagation();show(i+1)};
+    lb.addEventListener('click',e=>{if(e.target===lb)hide()});
+    document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')hide();if(e.key==='ArrowLeft')show(i-1);if(e.key==='ArrowRight')show(i+1)});
+})();
+</script>
 <script src="animations.js?v=20261025c"></script>
 </body>
 </html>
