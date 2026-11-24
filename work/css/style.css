@@ -439,9 +439,18 @@ textarea.form-input {
   background: var(--white); border-radius: var(--radius);
   padding: 1.5rem; width: 100%; max-width: 400px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+  /* dlouhý obsah: okno se vejde na obrazovku a roluje uvnitř */
+  max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem);
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+/* tlačítka dole v okně zůstávají vidět i při rolování dlouhého obsahu */
+.modal-box > .modal-actions {
+  position: sticky; bottom: -1.5rem; z-index: 2;
+  background: var(--white); margin: 1rem -1.5rem -1.5rem; padding: 12px 1.5rem 1.5rem;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
 
 /* ── MISC ── */
 .badge {
