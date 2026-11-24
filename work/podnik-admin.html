@@ -1747,8 +1747,19 @@ async function odebratBrigadnika(workerId, jeDomovska){
 }
 
 // ── VÝPLATY ──
+// Do výplat patří i odebraní (deaktivovaní) brigádníci, kterým tu ještě zbývá
+// něco nevyplaceného - aby šlo doplatit poslední směny i po odchodu.
+function getWorkersForVyplatyVenue(){
+  var workers = getWorkersForVenue(venue.id).slice();
+  var mam = {}; workers.forEach(function(w){ mam[w.id] = true; });
+  WORKERS.forEach(function(w){
+    if (mam[w.id] || w.role!=='user' || w.aktivni!==false) return;
+    if (getNevyplaceneDnyVenue(w.id, venue.id).length) workers.push(w);
+  });
+  return workers;
+}
 function renderVyplaty(){
-  var workers = getWorkersForVenue(venue.id);
+  var workers = getWorkersForVyplatyVenue();
   var el = document.getElementById('vyplaty-tbody');
   if (!workers.length) { el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:1.5rem;">Zatím nikdo.</td></tr>'; return; }
   el.innerHTML = workers.map(function(w){
@@ -1756,7 +1767,7 @@ function renderVyplaty(){
     var vyplaceno = getVyplacenoVenue(venue.id, w.id);
     var zbyva = v.cisty;
     var mp = getMesicniPrehled(w.id, venue.id);
-    return '<tr><td data-l=""><a href="#" style="font-weight:600;color:inherit;text-decoration:underline dotted;" title="Měsíce a výplaty – detail" onclick="mpOpenWorker('+w.id+','+venue.id+');return false;">'+w.jmeno+'</a>'+MP.monthChips(mp, 4)+'</td><td data-l="Hodin (od výplaty)">'+v.hodiny+'h</td><td data-l="Hrubý (od výplaty)">'+v.hruby.toLocaleString('cs-CZ')+' Kč</td>'+
+    return '<tr><td data-l=""><a href="#" style="font-weight:600;color:inherit;text-decoration:underline dotted;" title="Měsíce a výplaty – detail" onclick="mpOpenWorker('+w.id+','+venue.id+');return false;">'+w.jmeno+'</a>'+(w.aktivni===false?' <span class="badge badge-warning" title="Brigádník už u vás nepracuje – zbývá jen doplatit">odebraný – doplatit</span>':'')+MP.monthChips(mp, 4)+'</td><td data-l="Hodin (od výplaty)">'+v.hodiny+'h</td><td data-l="Hrubý (od výplaty)">'+v.hruby.toLocaleString('cs-CZ')+' Kč</td>'+
       '<td data-l="Účty" style="color:var(--text-muted);">'+(v.uctyDluh?v.uctyDluh+' Kč':'0 Kč')+'</td><td data-l="Zálohy">'+(v.zalohy?'−'+v.zalohy:'0')+' Kč</td><td data-l="Vyplaceno celkem">'+vyplaceno.toLocaleString('cs-CZ')+' Kč</td>'+
       '<td data-l="Zbývá" style="font-weight:600;">'+zbyva.toLocaleString('cs-CZ')+' Kč'+(v.uctyDluh?'<div style="font-size:11px;font-weight:500;color:var(--text-muted);">po odečtení účtů <b style="color:var(--text);">'+Math.max(0,zbyva-v.uctyDluh).toLocaleString('cs-CZ')+' Kč</b></div>':'')+'</td>'+
       '<td data-l="" class="mp-act"><button class="btn btn-sm btn-primary" onclick="openVyplatitModalVenue('+w.id+','+zbyva+')">💰 Vyplatit</button></td></tr>';
@@ -1991,7 +2002,7 @@ async function delVyplataVenueConfirm(id){
 // ── Úprava odpracovaných hodin zpětně (příchod/odchod po dnech, i mimo rozpis) ──
 function buildVyplatyDetailWorkerVenue(){
   var sel = document.getElementById('vd-worker');
-  var workers = getWorkersForVenue(venue.id);
+  var workers = getWorkersForVyplatyVenue();
   sel.innerHTML = '<option value="">– vyber brigádníka –</option>'+workers.map(function(w){return '<option value="'+w.id+'">'+w.jmeno+'</option>';}).join('');
 }
 function renderVyplatyDetailVenue(){
